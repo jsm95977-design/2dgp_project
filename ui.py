@@ -16,6 +16,7 @@ _cache = {}
 
 
 FONT_CANDIDATES = (
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'fonts', 'Galmuri11-Bold.ttf'),
     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'fonts', 'Galmuri11.ttf'),
     'C:/Windows/Fonts/malgunbd.ttf',
     'C:/Windows/Fonts/malgun.ttf',
@@ -24,7 +25,7 @@ _fonts = {}
 
 
 def font(size):
-    """한글 폰트. assets/fonts/Galmuri11.ttf를 넣으면 그것을 쓰고, 없으면 맑은 고딕. 둘 다 없으면 None"""
+    """한글 폰트. 픽셀 에셋과 같은 Galmuri11(굵게)을 쓰고, 없으면 맑은 고딕. 둘 다 없으면 None"""
     if size not in _fonts:
         _fonts[size] = None
         for path in FONT_CANDIDATES:
