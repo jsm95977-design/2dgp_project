@@ -104,6 +104,29 @@ class Board:
                 self.cells[r][c] = None
         return len(rows) + len(cols), removed, cracked
 
+    def tick_bombs(self):
+        """턴이 끝날 때 부른다. 모든 폭탄의 숫자를 1 줄이고, 0이 된 폭탄은 터뜨린다.
+        터지면 폭탄 칸과 주변 3x3의 일반 블록·방해 블록이 사라진다 (플레이어가 지운 게 아니라 점수 없음).
+        강철·해·달·다른 폭탄은 남는다.
+        돌려주는 값: (터진 폭탄 위치 [(r, c)], 사라진 칸 [(r, c, 색)])"""
+        bombs = [(r, c) for r in range(self.size) for c in range(self.size) if self.kind_at(r, c) == 'bomb']
+        exploded = []
+        for r, c in bombs:
+            count = self.cells[r][c][1] - 1
+            self.cells[r][c] = ('bomb', count)
+            if count <= 0:
+                exploded.append((r, c))
+        destroyed = []
+        for r, c in exploded:
+            self.cells[r][c] = None
+            for rr in range(r - 1, r + 2):
+                for cc in range(c - 1, c + 2):
+                    if self.inside(rr, cc) and self.kind_at(rr, cc) in ('block', 'obstacle'):
+                        kind, value = self.cells[rr][cc]
+                        destroyed.append((rr, cc, value if kind == 'block' else 'white'))
+                        self.cells[rr][cc] = None
+        return exploded, destroyed
+
     def count(self, kind):
         return sum(self.kind_at(r, c) == kind for r in range(self.size) for c in range(self.size))
 
