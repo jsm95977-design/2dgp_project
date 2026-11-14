@@ -201,6 +201,23 @@ class CubeView:
         for _ in range(count):
             self.cube.turn(random.randrange(3), random.choice((-1, 0, 1)), random.choice((1, 3)))
 
+    def front_frame(self):
+        """지금 화면에 정면으로 보이는 면: (바깥 법선, 화면 오른쪽 축, 화면 위쪽 축)
+        법선은 카메라 쪽(+z)을 가장 많이 향한 면, 오른쪽·위쪽은 그 면의 두 축 중
+        화면 x·y와 더 나란한 쪽으로 정한다 (큐브를 비스듬히 돌려 놓아도 가장 가까운 방향)."""
+        normal = max((face[0] for face in FACES), key=lambda n: transform(self.view, n)[2])
+        a, b = [tuple(1 if i == k else 0 for i in range(3)) for k in range(3) if normal[k] == 0]
+        va, vb = transform(self.view, a), transform(self.view, b)
+        if abs(va[0]) + abs(vb[1]) < abs(vb[0]) + abs(va[1]):
+            a, b, va, vb = b, a, vb, va
+        right = tuple(math.copysign(1, va[0]) * t for t in a)
+        up = tuple(math.copysign(1, vb[1]) * t for t in b)
+        return normal, tuple(int(v) for v in right), tuple(int(v) for v in up)
+
+    def front_grid(self):
+        """지금 화면에 보이는 앞면의 3x3 색 배열"""
+        return self.cube.face_grid(*self.front_frame())
+
     def reset_view(self):
         """시점을 처음 각도로 되돌린다"""
         self.view = IDENTITY
