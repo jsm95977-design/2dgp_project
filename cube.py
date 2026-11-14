@@ -52,3 +52,14 @@ class Cube:
             if cubie.pos[axis] == layer:
                 cubie.pos = transform(m, cubie.pos)
                 cubie.rot = mat_mul(m, cubie.rot)
+
+    def front_grid(self):
+        """앞면(+z) 3x3 색 배열. [0]이 맨 위 줄, [r][0]이 왼쪽 칸."""
+        grid = [[None] * 3 for _ in range(3)]
+        for cubie in self.cubies:
+            if cubie.pos[2] != 1:
+                continue
+            for face in cubie.stickers:
+                if transform(cubie.rot, face[0]) == (0, 0, 1):
+                    grid[1 - cubie.pos[1]][cubie.pos[0] + 1] = face[3]
+        return grid
