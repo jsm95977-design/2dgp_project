@@ -21,7 +21,7 @@ from cube_view import CubeView, cross
 from effect import SheetEffect, FloatingText
 from mascot import Mascot
 from settings import HEIGHT
-from ui import img, draw_tl, draw_number, draw_text, inside, Button
+from ui import img, draw_tl, draw_part, draw_number, draw_text, inside, Button
 
 # ---- 배치 (화면 왼쪽 위 기준, UI_GUIDE.md) ----
 BOARD_POS = (650, 60)
@@ -34,6 +34,11 @@ COLOR_PANEL = (400, 104)
 PREVIEW_PANEL = (400, 296)
 MASCOT_CENTER, MASCOT_SIZE = (528, 596), 150
 GAUGE_POS = (16, 16)
+# 게이지 이미지 안 위치: 칸 i는 (64 + 16·i)부터, 오른쪽 끝 테두리는 596부터 28px, 칸이 없는 몸통은 548~580
+GAUGE_SLOT0, GAUGE_SLOT_PITCH = 64, 16
+GAUGE_CAP_LEFT_W, GAUGE_BODY, GAUGE_CAP_RIGHT = 16, (548, 32), (596, 28)
+INFO_RIGHT = 640           # 스테이지 정보 패널 오른쪽 끝 (점수 패널 앞)
+TEXT_YELLOW = (255, 210, 63)
 
 STATE_ROTATE, STATE_CLEARING, STATE_SHUFFLING, STATE_OVER = 'rotate', 'clearing', 'shuffling', 'over'
 STATE_CLEAR = 'clear'      # 스테이지 목표 달성
@@ -380,8 +385,11 @@ class Game:
                     draw_tl(ghost, *cell_tl(r0 + r, c0 + c))
 
     def draw_hud(self):
-        # 에너지 게이지 (스테이지는 이번 턴에 남은 회전 수)
-        draw_tl(img('hud/energy_gauge'), *GAUGE_POS)
+        # 에너지 게이지 (스테이지는 이번 턴에 남은 회전 수만큼 짧게 잘라 그리고 옆에 정보 패널)
+        if self.stage:
+            self.draw_stage_gauge()
+        else:
+            draw_tl(img('hud/energy_gauge'), *GAUGE_POS)
         low = self.energy <= (1 if self.stage else config.ENERGY_LOW)
         blink = low and int(self.blink_timer * 4) % 2 == 1
         seg = img('hud/energy_seg_blink' if blink else 'hud/energy_seg_low' if low else 'hud/energy_seg_full')
@@ -395,14 +403,6 @@ class Game:
         if self.stage:
             # 남은 턴 수, 게이지 오른쪽에 스테이지 번호·목표 진행
             draw_number(str(max(0, self.turns_left())), 1100, 16, yellow=self.turns_left() <= 2)
-            draw_text('스테이지 %d   회전 %d/%d' % (self.stage, self.energy, config.STAGE_ROTATIONS),
-                      200, 26, 17, (255, 230, 120))
-            goal = '목표: 줄 %d/%d' % (min(self.lines_total, self.goal_lines), self.goal_lines)
-            for kind, name in (('sun', '해'), ('moon', '달')):
-                total = self.goal_specials[kind]
-                if total:
-                    goal += '  %s %d/%d' % (name, total - self.specials_left(kind), total)
-            draw_text(goal, 200, 50, 17)    # 게이지 안 두 번째 줄
         else:
             draw_number(str(self.turn), 1100, 16)
 
@@ -417,6 +417,32 @@ class Game:
             mini = img('hud/mini_' + (self.color if self.piece_ready() else 'gray'))
             for r, c in self.piece:
                 draw_tl(mini, 448 + 48 * c, 376 + 48 * r)
+
+    def draw_stage_gauge(self):
+        """스테이지용 짧은 게이지(번개 + 회전 칸 STAGE_ROTATIONS개)와 그 오른쪽 정보 패널"""
+        gauge = img('hud/energy_gauge')
+        left, top = GAUGE_POS
+        cut = GAUGE_SLOT0 + GAUGE_SLOT_PITCH * config.STAGE_ROTATIONS
+        draw_part(gauge, 0, cut, left, top)
+        draw_part(gauge, *GAUGE_CAP_RIGHT, left + cut, top)
+
+        # 정보 패널: 게이지 이미지의 왼쪽 끝 + 칸 없는 몸통(늘림) + 오른쪽 끝
+        panel_left = left + cut + GAUGE_CAP_RIGHT[1] + 8
+        width = INFO_RIGHT - panel_left
+        draw_part(gauge, 0, GAUGE_CAP_LEFT_W, panel_left, top)
+        draw_part(gauge, *GAUGE_BODY, panel_left + GAUGE_CAP_LEFT_W, top,
+                  w=width - GAUGE_CAP_LEFT_W - GAUGE_CAP_RIGHT[1])
+        draw_part(gauge, *GAUGE_CAP_RIGHT, INFO_RIGHT - GAUGE_CAP_RIGHT[1], top)
+
+        x = panel_left + 20
+        draw_text('스테이지 %d' % self.stage, x, top + 10, 24, TEXT_YELLOW)
+        draw_text('회전 %d/%d' % (self.energy, config.STAGE_ROTATIONS), x + 190, top + 10, 24)
+        goal = '목표 줄 %d/%d' % (min(self.lines_total, self.goal_lines), self.goal_lines)
+        for kind, name in (('sun', '해'), ('moon', '달')):
+            total = self.goal_specials[kind]
+            if total:
+                goal += '  %s %d/%d' % (name, total - self.specials_left(kind), total)
+        draw_text(goal, x, top + 36, 24)
 
     def draw_drag(self):
         left, top = self.piece_top_left()
