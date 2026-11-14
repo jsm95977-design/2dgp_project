@@ -167,6 +167,8 @@ class Game:
                 open_pause()
             elif event.key == SDLK_p:
                 self.pass_turn()
+            elif event.key == SDLK_r:
+                self.cube_view.reset_view()
             elif event.key in (SDLK_q, SDLK_e) and self.state == STATE_ROTATE:
                 self.cube_view.rotate_front(event.key == SDLK_e)
             return
