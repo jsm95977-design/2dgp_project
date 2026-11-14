@@ -116,7 +116,8 @@ def draw():
         active = stage in (hover_stage, selected_stage)
         draw_tl(img('windows/stage_tile_hover' if active else 'windows/stage_tile'), left, top)
         text = str(stage)
-        draw_number(text, left + (TILE - 36 * len(text)) / 2, top + 28)
+        # 편집해 둔 맵이 있는 스테이지는 노란 숫자
+        draw_number(text, left + (TILE - 36 * len(text)) / 2, top + 28, yellow=stage in edited_stages)
         for k in range(3):   # 별 3개 (28x28), 타일 아래 가운데
             star = img('windows/star_small_full' if k < stars(stage) else 'windows/star_small_empty')
             draw_tl(star, left + 4 + 34 * k, top + TILE + 2)
