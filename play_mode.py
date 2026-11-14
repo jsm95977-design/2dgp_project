@@ -10,7 +10,7 @@ import config
 import game_framework
 import piece as piece_logic
 from board import Board
-from cube_view import CubeView
+from cube_view import CubeView, cross
 from effect import SheetEffect, FloatingText
 from mascot import Mascot
 from settings import HEIGHT
@@ -151,8 +151,23 @@ class Game:
     def check_game_over(self):
         if not self.board.has_room_for_min_piece():
             self.game_over()
-        elif self.energy <= 0 and not (self.piece_ready() and self.board.fits_anywhere(self.piece)):
+        elif self.energy <= 0 and not self.any_view_placeable():
             self.game_over()
+
+    def any_view_placeable(self):
+        """에너지가 없어도 시점은 돌릴 수 있으므로, 6면 x 4방향 중 놓을 수 있는 블록이 하나라도 있는지"""
+        cube = self.cube_view.cube
+        for normal in ((1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)):
+            right, up = [tuple(1 if i == k else 0 for i in range(3)) for k in range(3) if normal[k] == 0]
+            if cross(right, up) != normal:   # 바깥에서 본 모양이 되도록 (뒤집힌 모양 방지)
+                up = tuple(-v for v in up)
+            grid = cube.face_grid(normal, right, up)
+            for _ in range(4):
+                cells = piece_logic.extract(grid, self.color)
+                if piece_logic.is_placeable(cells) and self.board.fits_anywhere(cells):
+                    return True
+                grid = [list(row) for row in zip(*grid[::-1])]   # 90도 돌린 모양
+        return False
 
     def game_over(self):
         self.state, self.state_timer = STATE_OVER, OVER_DELAY
