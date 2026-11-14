@@ -15,6 +15,7 @@ import game_framework
 import piece as piece_logic
 import stage_data
 from board import Board
+from cell_view import draw_cell
 from cube_view import CubeView, cross
 from effect import SheetEffect, FloatingText
 from mascot import Mascot
@@ -73,6 +74,8 @@ class Game:
         self.state = None
         self.state_timer = 0.0
         self.blink_timer = 0.0
+        self.steel_hit = []        # 강철 때문에 못 지운 줄의 강철 칸 (잠깐 steel_hit로 그린다)
+        self.steel_hit_timer = 0.0
 
         self.dragging = False
         self.mouse = (0, 0)
@@ -271,6 +274,7 @@ class Game:
     # ---------- 업데이트 ----------
     def update(self, dt):
         self.blink_timer += dt
+        self.steel_hit_timer = max(0.0, self.steel_hit_timer - dt)
         self.cube_view.enabled = self.state == STATE_ROTATE and self.energy > 0 and not self.dragging
         self.cube_view.update(dt)
         if self.state == STATE_ROTATE and not self.dragging:
@@ -329,12 +333,8 @@ class Game:
         draw_tl(img('board/board'), *BOARD_POS)
         for r in range(self.board.size):
             for c in range(self.board.size):
-                cell = self.board.cells[r][c]
-                if cell is None:
-                    continue
-                kind, value = cell
-                name = 'board/block_' + value if kind == 'block' else 'board/obstacle_hp%d' % value
-                draw_tl(img(name), *cell_tl(r, c))
+                draw_cell(self.board.cells[r][c], *cell_tl(r, c), t=self.blink_timer, phase=0.37 * (r + 2 * c),
+                          hit=(r, c) in self.steel_hit and self.steel_hit_timer > 0)
         if self.dragging and self.drop_cell:
             ok = self.board.can_place(self.piece, *self.drop_cell)
             ghost = img('board/ghost' if ok else 'board/ghost_bad')
