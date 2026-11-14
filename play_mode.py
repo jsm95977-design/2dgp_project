@@ -1,7 +1,11 @@
-"""플레이 화면 (무한 모드)
+"""플레이 화면 (무한 모드 / 스테이지 모드)
 
 턴 상태 머신: rotate(회전·배치 입력) → clearing(줄 삭제 연출) → shuffling(방해 블록·자동 섞기) → rotate ...
-게임 오버가 되면 over 상태에서 잠시 기다렸다가 gameover_mode를 띄운다."""
+게임 오버가 되면 over 상태에서 잠시 기다렸다가 gameover_mode를 띄운다.
+
+스테이지 모드: 모듈 변수 stage에 스테이지 번호를 넣고 이 모드로 바꾸면 stages.json의 맵으로 시작한다.
+- 판은 맵 그대로, 턴 제한 안에 목표 줄 수를 지우면 클리어 (clear 상태 → stage_clear_mode)
+- 에너지 대신 턴마다 회전 STAGE_ROTATIONS회, 턴마다 생기는 방해 블록 없음 (패스 패널티는 있음)"""
 import random
 
 from pico2d import *
@@ -9,6 +13,7 @@ from pico2d import *
 import config
 import game_framework
 import piece as piece_logic
+import stage_data
 from board import Board
 from cube_view import CubeView, cross
 from effect import SheetEffect, FloatingText
@@ -33,6 +38,7 @@ CLEAR_DELAY = 0.45
 OVER_DELAY = 1.2
 
 game = None
+stage = None               # None이면 무한 모드, 번호면 그 스테이지
 
 
 def cell_tl(r, c):
@@ -71,11 +77,30 @@ class Game:
         self.mouse = (0, 0)
         self.drop_cell = None   # 드래그 중인 블록이 놓일 (r, c), 판 밖이면 None
 
+        # 스테이지 모드
+        self.stage = stage
+        self.lines_total = 0    # 지금까지 지운 줄 수 (목표 판정)
+        self.stars = 0
+        if self.stage:
+            data = stage_data.load(self.stage)
+            self.board.cells = [list(row) for row in data['cells']]
+            self.turn_limit = data['turns']
+            self.goal_lines = data['goal_lines']
+
         self.start_turn()
+
+    def turns_left(self):
+        """이번 턴을 포함해 남은 턴 수 (스테이지 모드)"""
+        return self.turn_limit - self.turn + 1
 
     # ---------- 턴 진행 ----------
     def start_turn(self):
+        if self.stage and self.turn >= self.turn_limit:
+            self.game_over()     # 턴을 다 썼는데 목표를 못 채움
+            return
         self.turn += 1
+        if self.stage:
+            self.energy = config.STAGE_ROTATIONS   # 스테이지는 턴마다 회전 횟수가 다시 채워진다
         self.color, self.next_color = self.next_color, random.choice(config.COLORS)
         self.cube_view.highlight = self.color
         self.state = STATE_ROTATE
