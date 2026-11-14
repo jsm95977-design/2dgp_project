@@ -279,6 +279,7 @@ class Game:
             self.mascot.nervous = self.turns_left() <= 1 and self.lines_total < self.goal_lines
         else:
             self.mascot.nervous = self.energy <= config.ENERGY_LOW
+        self.mascot.color = self.color    # 젤리는 이번 턴 지정 색으로 바뀐다
         self.mascot.update(dt)
         for effect in self.effects:
             effect.update(dt)
