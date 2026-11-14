@@ -1,8 +1,9 @@
 """스테이지 선택: 1~20 스테이지 타일 (한 줄에 7개, 3줄, 줄마다 가운데 정렬)"""
-from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
+from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDLK_F1, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
 
 import game_framework
-from ui import img, draw_tl, draw_number, inside, Button
+import stage_data
+from ui import img, draw_tl, draw_number, draw_text, inside, Button
 
 STAGE_COUNT = 20
 COLUMNS = 7
@@ -49,10 +50,21 @@ def go_back():
     game_framework.change_mode(mode_select_mode)
 
 
+def open_editor():
+    """F1: 선택한 스테이지(없으면 마우스가 올라간 스테이지, 그것도 없으면 1)를 편집"""
+    import stage_edit_mode
+    stage_edit_mode.stage = selected_stage or hover_stage or 1
+    game_framework.change_mode(stage_edit_mode)
+
+
+edited_stages = set()
+
+
 def init():
-    global back_button, hover_stage, selected_stage
+    global back_button, hover_stage, edited_stages
     back_button = Button('buttons/icon_back', 16, 16, hit_h=64)
-    hover_stage = selected_stage = None
+    hover_stage = None    # selected_stage는 편집 모드에 다녀와도 유지
+    edited_stages = set(stage_data.load_all())
 
 
 def finish():
@@ -73,6 +85,9 @@ def handle_events(events):
         if event.type == SDL_KEYDOWN and event.key == SDLK_ESCAPE:
             go_back()
             return
+        if event.type == SDL_KEYDOWN and event.key == SDLK_F1:
+            open_editor()
+            return
         if back_button.handle_event(event):
             go_back()
             return
@@ -92,6 +107,7 @@ def draw():
     draw_tl(img('board/play_bg'), 0, 0)
     draw_tl(img('windows/title_stage_select'), *TITLE_POS)
     back_button.draw()
+    draw_text('F1 : 편집 모드 (스테이지를 클릭해 고른 뒤)', 40, 672, 18)
     for stage in range(1, STAGE_COUNT + 1):
         left, top = tile_tl(stage)
         if not is_unlocked(stage):
