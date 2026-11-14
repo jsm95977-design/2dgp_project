@@ -6,7 +6,7 @@
 스테이지 모드: 모듈 변수 stage에 스테이지 번호를 넣고 이 모드로 바꾸면 stages.json의 맵으로 시작한다.
 - 판은 맵 그대로, 턴 제한 안에 목표 줄 수를 지우고 해·달을 모두 획득하면 클리어 (clear 상태 → stage_clear_mode)
 - 특수 블록(강철·폭탄·해·달) 규칙은 board.py 참고
-- 에너지 대신 턴마다 회전 STAGE_ROTATIONS회, 턴마다 생기는 방해 블록 없음 (패스 패널티는 있음)"""
+- 에너지 대신 턴마다 회전 STAGE_ROTATIONS회, 턴마다 생기는 방해 블록 없음, 패스 없음"""
 import random
 
 from pico2d import *
@@ -197,7 +197,7 @@ class Game:
             self.effects.append(SheetEffect(name, 8, left - 64, top - 64, size=192, fps=12))
 
     def pass_turn(self):
-        if not self.can_act():
+        if self.stage or not self.can_act():     # 스테이지 모드에는 패스가 없다
             return
         self.combo = 0
         self.end_turn(config.PASS_OBSTACLES)
@@ -272,7 +272,7 @@ class Game:
         if self.pause_button.handle_event(event):
             open_pause()
             return
-        if self.pass_button.handle_event(event):
+        if not self.stage and self.pass_button.handle_event(event):
             self.pass_turn()
             return
         for button, clockwise in ((self.ccw_button, False), (self.cw_button, True)):
@@ -362,7 +362,8 @@ class Game:
         self.cube_view.draw()
         self.ccw_button.draw()
         self.cw_button.draw()
-        self.pass_button.draw()
+        if not self.stage:
+            self.pass_button.draw()
         self.pause_button.draw()
         self.mascot.draw()
         if self.dragging:
