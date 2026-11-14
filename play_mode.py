@@ -19,7 +19,7 @@ from cube_view import CubeView, cross
 from effect import SheetEffect, FloatingText
 from mascot import Mascot
 from settings import HEIGHT
-from ui import img, draw_tl, draw_number, inside, Button
+from ui import img, draw_tl, draw_number, draw_text, inside, Button
 
 # ---- 배치 (화면 왼쪽 위 기준, UI_GUIDE.md) ----
 BOARD_POS = (650, 60)
@@ -343,9 +343,9 @@ class Game:
                     draw_tl(ghost, *cell_tl(r0 + r, c0 + c))
 
     def draw_hud(self):
-        # 에너지 게이지
+        # 에너지 게이지 (스테이지는 이번 턴에 남은 회전 수)
         draw_tl(img('hud/energy_gauge'), *GAUGE_POS)
-        low = self.energy <= config.ENERGY_LOW
+        low = self.energy <= (1 if self.stage else config.ENERGY_LOW)
         blink = low and int(self.blink_timer * 4) % 2 == 1
         seg = img('hud/energy_seg_blink' if blink else 'hud/energy_seg_low' if low else 'hud/energy_seg_full')
         for i in range(self.energy):
@@ -355,7 +355,15 @@ class Game:
         draw_tl(img('hud/score_panel'), 672, 4)
         draw_number('%06d' % min(self.score, 999999), 784, 16)
         draw_tl(img('hud/turn_panel'), 1024, 4)
-        draw_number(str(self.turn), 1100, 16)
+        if self.stage:
+            # 남은 턴 수, 게이지 오른쪽에 스테이지 번호·목표 진행
+            draw_number(str(max(0, self.turns_left())), 1100, 16, yellow=self.turns_left() <= 2)
+            draw_text('스테이지 %d   회전 %d/%d' % (self.stage, self.energy, config.STAGE_ROTATIONS),
+                      260, 34, 20, (255, 230, 120))
+            draw_text('목표: 줄 %d / %d' % (min(self.lines_total, self.goal_lines), self.goal_lines),
+                      470, 34, 20)
+        else:
+            draw_number(str(self.turn), 1100, 16)
 
         # 이번 / 다음 색
         draw_tl(img('hud/color_panel'), *COLOR_PANEL)
