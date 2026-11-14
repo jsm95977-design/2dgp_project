@@ -27,6 +27,10 @@ def mat_mul(a, b):
     return tuple(tuple(sum(a[r][k] * b[k][c] for k in range(3)) for c in range(3)) for r in range(3))
 
 
+def dot(a, b):
+    return sum(p * q for p, q in zip(a, b))
+
+
 def transform(m, v):
     return tuple(m[r][0] * v[0] + m[r][1] * v[1] + m[r][2] * v[2] for r in range(3))
 
@@ -53,13 +57,18 @@ class Cube:
                 cubie.pos = transform(m, cubie.pos)
                 cubie.rot = mat_mul(m, cubie.rot)
 
-    def front_grid(self):
-        """앞면(+z) 3x3 색 배열. [0]이 맨 위 줄, [r][0]이 왼쪽 칸."""
+    def face_grid(self, normal, right, up):
+        """normal 쪽 면을 바깥에서 볼 때의 3x3 색 배열. right/up은 그 면에서 화면 오른쪽·위쪽 방향(단위 축).
+        [0]이 맨 위 줄, [r][0]이 왼쪽 칸."""
         grid = [[None] * 3 for _ in range(3)]
         for cubie in self.cubies:
-            if cubie.pos[2] != 1:
+            if dot(cubie.pos, normal) != 1:
                 continue
             for face in cubie.stickers:
-                if transform(cubie.rot, face[0]) == (0, 0, 1):
-                    grid[1 - cubie.pos[1]][cubie.pos[0] + 1] = face[3]
+                if transform(cubie.rot, face[0]) == normal:
+                    grid[1 - dot(cubie.pos, up)][dot(cubie.pos, right) + 1] = face[3]
         return grid
+
+    def front_grid(self):
+        """처음 정면(+z) 3x3 색 배열"""
+        return self.face_grid((0, 0, 1), (1, 0, 0), (0, 1, 0))
