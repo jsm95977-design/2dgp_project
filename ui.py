@@ -53,6 +53,13 @@ def draw_tl(image, left, top):
     image.draw(left + image.w / 2, HEIGHT - top - image.h / 2)
 
 
+def draw_part(image, src_left, src_w, left, top, w=None):
+    """이미지의 가로 일부(src_left부터 src_w만큼, 높이 전체)를 왼쪽 위 (left, top)에 그린다.
+    w를 주면 그 너비로 늘린다 (패널 가운데를 늘려 길이를 바꿀 때)"""
+    w = src_w if w is None else w
+    image.clip_draw(src_left, 0, src_w, image.h, left + w / 2, HEIGHT - top - image.h / 2, w, image.h)
+
+
 def draw_tl_scaled(image, left, top, w, h):
     image.draw(left + w / 2, HEIGHT - top - h / 2, w, h)
 
