@@ -83,7 +83,7 @@ class Game:
         self.check_game_over()
 
     def refresh_piece(self):
-        self.piece = piece_logic.extract(self.cube_view.cube.front_grid(), self.color)
+        self.piece = piece_logic.extract(self.cube_view.front_grid(), self.color)   # 화면에 보이는 앞면
 
     def on_rotate(self):
         """플레이어 회전 1회가 끝났다"""
@@ -221,6 +221,8 @@ class Game:
         self.blink_timer += dt
         self.cube_view.enabled = self.state == STATE_ROTATE and self.energy > 0 and not self.dragging
         self.cube_view.update(dt)
+        if self.state == STATE_ROTATE and not self.dragging:
+            self.refresh_piece()   # 시점을 돌리면 보이는 앞면이 바뀌므로 매 프레임 다시 읽는다
         self.mascot.nervous = self.energy <= config.ENERGY_LOW
         self.mascot.update(dt)
         for effect in self.effects:
