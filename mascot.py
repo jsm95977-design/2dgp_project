@@ -1,26 +1,21 @@
-"""마스코트: 큐브 마술사(cube_magician_sheet.png)를 상황에 따라 다른 줄로 재생한다.
-시트 줄: 0 대기(지팡이), 1 기쁨(큐브 마법), 2 초조(땀), 3 실망(게임오버)"""
-import os
-
-from pico2d import load_image
-
-from character import FRAME_SIZE, FRAMES_PER_ACTION
+"""마스코트: 고른 캐릭터(큐브봇·박스냥·젤리)의 픽셀 시트를 상황에 따라 재생한다.
+시트는 상태마다 한 장(128x128 프레임 4개 가로): idle 평소, happy 줄 삭제, nervous 초조, gameover 게임오버"""
+import characters
 from settings import HEIGHT
+from ui import img
 
-ROWS = {'idle': 0, 'happy': 1, 'nervous': 2, 'gameover': 3}
-FPS = {'idle': 4, 'happy': 8, 'nervous': 7, 'gameover': 5}
+FRAME = 128
+FRAMES = 4
+FPS = {'idle': 6, 'happy': 8, 'nervous': 8, 'gameover': 6}
 HAPPY_TIME = 1.5
-SHEET = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cube_magician_sheet.png')
 
 
 class Mascot:
-    image = None
-
-    def __init__(self, center_left, center_top, size):
-        if Mascot.image is None:
-            Mascot.image = load_image(SHEET)
+    def __init__(self, center_left, center_top, size, key=None):
         self.x, self.y = center_left, HEIGHT - center_top
         self.size = size
+        self.key = key or characters.load()
+        self.color = None          # 젤리만 쓰는 색 (None이면 기본색)
         self.state = 'idle'
         self.frame_timer = 0.0
         self.happy_timer = 0.0
@@ -44,8 +39,12 @@ class Mascot:
             self.state, self.frame_timer = state, 0.0
         self.frame_timer += dt
 
+    def frame(self):
+        n = int(self.frame_timer * FPS[self.state])
+        if self.state == 'gameover':     # 게임오버는 쓰러진 뒤 마지막 두 프레임을 반복
+            return n if n < FRAMES else FRAMES - 2 + n % 2
+        return n % FRAMES
+
     def draw(self):
-        row = ROWS[self.state]
-        frame = int(self.frame_timer * FPS[self.state]) % FRAMES_PER_ACTION
-        left, bottom = frame * FRAME_SIZE, (3 - row) * FRAME_SIZE
-        self.image.clip_draw(left, bottom, FRAME_SIZE, FRAME_SIZE, self.x, self.y, self.size, self.size)
+        sheet = img(characters.sheet_path(self.key, self.state, self.color))
+        sheet.clip_draw(self.frame() * FRAME, 0, FRAME, FRAME, self.x, self.y, self.size, self.size)
