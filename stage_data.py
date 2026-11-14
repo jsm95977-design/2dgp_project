@@ -15,6 +15,7 @@ import os
 from config import BOARD_SIZE, COLORS
 
 STAGE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stages.json')
+PROGRESS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stage_progress.json')   # 클리어 기록
 DEFAULT_TURNS = 10
 DEFAULT_GOAL_LINES = 3
 TURNS_RANGE = (1, 99)
@@ -63,6 +64,32 @@ def has_map(stage):
     return stage in load_all()
 
 
+def load_progress():
+    """클리어 기록 {스테이지: {'stars': 0~3, 'best': 최고 점수}}"""
+    try:
+        with open(PROGRESS_FILE, encoding='utf-8') as f:
+            raw = json.load(f)
+        return {int(k): {'stars': int(v.get('stars', 0)), 'best': int(v.get('best', 0))} for k, v in raw.items()}
+    except (OSError, ValueError, AttributeError):
+        return {}
+
+
+def record_result(stage, stars, score):
+    """별과 점수는 더 좋을 때만 덮어쓴다 (실패는 stars=0)"""
+    progress = load_progress()
+    old = progress.get(stage, {'stars': 0, 'best': 0})
+    progress[stage] = {'stars': max(old['stars'], stars), 'best': max(old['best'], score)}
+    write_json(PROGRESS_FILE, {str(k): v for k, v in sorted(progress.items())})
+
+
+def write_json(path, value):
+    """임시 파일에 쓰고 바꿔치기해서, 쓰다가 꺼져도 기존 파일이 깨지지 않게 한다"""
+    tmp = path + '.tmp'
+    with open(tmp, 'w', encoding='utf-8') as f:
+        json.dump(value, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, path)
+
+
 def save(stage, data):
     """한 스테이지를 저장한다. 임시 파일에 쓰고 바꿔치기해서, 쓰다가 꺼져도 기존 파일이 깨지지 않는다."""
     all_stages = load_all()
@@ -70,7 +97,4 @@ def save(stage, data):
     serializable = {str(k): {'turns': v['turns'], 'goal_lines': v['goal_lines'],
                              'cells': [[list(cell) if cell else None for cell in row] for row in v['cells']]}
                     for k, v in sorted(all_stages.items())}
-    tmp = STAGE_FILE + '.tmp'
-    with open(tmp, 'w', encoding='utf-8') as f:
-        json.dump(serializable, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, STAGE_FILE)
+    write_json(STAGE_FILE, serializable)
