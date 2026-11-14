@@ -4,7 +4,8 @@
 게임 오버가 되면 over 상태에서 잠시 기다렸다가 gameover_mode를 띄운다.
 
 스테이지 모드: 모듈 변수 stage에 스테이지 번호를 넣고 이 모드로 바꾸면 stages.json의 맵으로 시작한다.
-- 판은 맵 그대로, 턴 제한 안에 목표 줄 수를 지우면 클리어 (clear 상태 → stage_clear_mode)
+- 판은 맵 그대로, 턴 제한 안에 목표 줄 수를 지우고 해·달을 모두 획득하면 클리어 (clear 상태 → stage_clear_mode)
+- 특수 블록(강철·폭탄·해·달) 규칙은 board.py 참고
 - 에너지 대신 턴마다 회전 STAGE_ROTATIONS회, 턴마다 생기는 방해 블록 없음 (패스 패널티는 있음)"""
 import random
 
@@ -90,8 +91,18 @@ class Game:
             self.board.cells = [list(row) for row in data['cells']]
             self.turn_limit = data['turns']
             self.goal_lines = data['goal_lines']
+            self.board.activate_suns()    # 맵에서 이미 둘러싸인 해는 바로 활성화
+            self.goal_specials = {kind: self.board.count(kind) for kind in ('sun', 'moon')}
 
         self.start_turn()
+
+    def specials_left(self, kind):
+        return self.board.count(kind)
+
+    def goal_done(self):
+        """스테이지 목표: 줄 수를 채우고, 맵의 해·달을 모두 획득"""
+        return (self.lines_total >= self.goal_lines and
+                self.specials_left('sun') == 0 and self.specials_left('moon') == 0)
 
     def turns_left(self):
         """이번 턴을 포함해 남은 턴 수 (스테이지 모드)"""
@@ -305,7 +316,7 @@ class Game:
         if self.state == STATE_ROTATE and not self.dragging:
             self.refresh_piece()   # 시점을 돌리면 보이는 앞면이 바뀌므로 매 프레임 다시 읽는다
         if self.stage:
-            self.mascot.nervous = self.turns_left() <= 1 and self.lines_total < self.goal_lines
+            self.mascot.nervous = self.turns_left() <= 1 and not self.goal_done()
         else:
             self.mascot.nervous = self.energy <= config.ENERGY_LOW
         self.mascot.color = self.color    # 젤리는 이번 턴 지정 색으로 바뀐다
@@ -319,7 +330,7 @@ class Game:
         if self.state == STATE_CLEARING:
             self.state_timer -= dt
             if self.state_timer <= 0:
-                if self.stage and self.lines_total >= self.goal_lines:
+                if self.stage and self.goal_done():
                     self.stage_clear()
                 else:
                     self.end_turn()
@@ -386,8 +397,12 @@ class Game:
             draw_number(str(max(0, self.turns_left())), 1100, 16, yellow=self.turns_left() <= 2)
             draw_text('스테이지 %d   회전 %d/%d' % (self.stage, self.energy, config.STAGE_ROTATIONS),
                       260, 34, 20, (255, 230, 120))
-            draw_text('목표: 줄 %d / %d' % (min(self.lines_total, self.goal_lines), self.goal_lines),
-                      470, 34, 20)
+            goal = '목표: 줄 %d/%d' % (min(self.lines_total, self.goal_lines), self.goal_lines)
+            for kind, name in (('sun', '해'), ('moon', '달')):
+                total = self.goal_specials[kind]
+                if total:
+                    goal += '  %s %d/%d' % (name, total - self.specials_left(kind), total)
+            draw_text(goal, 470, 34, 20)
         else:
             draw_number(str(self.turn), 1100, 16)
 
