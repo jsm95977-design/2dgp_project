@@ -1,5 +1,5 @@
 """스테이지 선택: 1~20 스테이지 타일 (한 줄에 7개, 3줄, 줄마다 가운데 정렬)"""
-from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDLK_F1, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
+from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDLK_F1, SDLK_RETURN, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
 
 import game_framework
 import stage_data
@@ -36,13 +36,25 @@ def is_unlocked(stage):
 
 
 def stars(stage):
-    return 0       # 스테이지 기록이 생기면 얻은 별 수 (0~3)
+    """클리어 기록에 남은 별 수 (0~3)"""
+    return progress.get(stage, {'stars': 0})['stars']
 
 
-def start_stage(stage):
-    """스테이지 플레이는 아직 없으므로 선택만 표시한다"""
+def click_stage(stage):
+    """처음 클릭은 선택(F1 편집 대상), 선택된 스테이지를 한 번 더 누르면 맵이 있을 때 플레이"""
     global selected_stage
-    selected_stage = stage
+    if stage == selected_stage:
+        play_stage(stage)
+    else:
+        selected_stage = stage
+
+
+def play_stage(stage):
+    if stage not in edited_stages:   # 맵이 없으면 플레이할 수 없다
+        return
+    import play_mode
+    play_mode.stage = stage
+    game_framework.change_mode(play_mode)
 
 
 def go_back():
@@ -58,13 +70,15 @@ def open_editor():
 
 
 edited_stages = set()
+progress = {}
 
 
 def init():
-    global back_button, hover_stage, edited_stages
+    global back_button, hover_stage, edited_stages, progress
     back_button = Button('buttons/icon_back', 16, 16, hit_h=64)
     hover_stage = None    # selected_stage는 편집 모드에 다녀와도 유지
     edited_stages = set(stage_data.load_all())
+    progress = stage_data.load_progress()
 
 
 def finish():
@@ -88,6 +102,9 @@ def handle_events(events):
         if event.type == SDL_KEYDOWN and event.key == SDLK_F1:
             open_editor()
             return
+        if event.type == SDL_KEYDOWN and event.key == SDLK_RETURN and selected_stage:
+            play_stage(selected_stage)
+            return
         if back_button.handle_event(event):
             go_back()
             return
@@ -96,7 +113,7 @@ def handle_events(events):
         elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
             stage = stage_at(event.x, event.y)
             if stage and is_unlocked(stage):
-                start_stage(stage)
+                click_stage(stage)
 
 
 def update(dt):
