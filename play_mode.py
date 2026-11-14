@@ -187,7 +187,14 @@ class Game:
         self.end_turn(config.PASS_OBSTACLES)
 
     def end_turn(self, extra_obstacles=0):
-        """정리: 방해 블록 생성 → 큐브 자동 섞기. 섞기가 끝나면 다음 턴."""
+        """정리: 폭탄 카운트다운 → 방해 블록 생성 → 큐브 자동 섞기. 섞기가 끝나면 다음 턴."""
+        exploded, destroyed = self.board.tick_bombs()
+        for r, c in exploded:
+            left, top = cell_tl(r, c)
+            self.effects.append(SheetEffect('special/fx_explosion', 8, left - 64, top - 64, size=192, fps=12))
+        for i, (r, c, color) in enumerate(destroyed):   # 폭발로 사라진 블록 (점수 없음)
+            left, top = cell_tl(r, c)
+            self.effects.append(SheetEffect('fx/fx_clear_' + color, 8, left - 16, top - 16, delay=0.15 + 0.01 * i))
         count = (0 if self.stage else config.obstacles_for_turn(self.turn)) + extra_obstacles
         hps = [config.DURABLE_HP if self.turn >= config.DURABLE_FROM_TURN and random.random() < config.DURABLE_CHANCE
                else config.NORMAL_HP for _ in range(count)]
