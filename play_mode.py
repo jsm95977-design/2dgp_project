@@ -34,6 +34,7 @@ MASCOT_CENTER, MASCOT_SIZE = (528, 596), 150
 GAUGE_POS = (16, 16)
 
 STATE_ROTATE, STATE_CLEARING, STATE_SHUFFLING, STATE_OVER = 'rotate', 'clearing', 'shuffling', 'over'
+STATE_CLEAR = 'clear'      # 스테이지 목표 달성
 CLEAR_DELAY = 0.45
 OVER_DELAY = 1.2
 
@@ -200,7 +201,16 @@ class Game:
         self.state, self.state_timer = STATE_OVER, OVER_DELAY
         self.dragging = False
         self.mascot.gameover = True
-        save_highscore(self.score)
+        if self.stage:
+            stage_data.record_result(self.stage, 0, self.score)
+        else:
+            save_highscore(self.score)
+
+    def stage_clear(self):
+        self.stars = config.stars_for(self.turn_limit - self.turn, self.turn_limit)
+        self.state, self.state_timer = STATE_CLEAR, OVER_DELAY
+        self.mascot.cheer()
+        stage_data.record_result(self.stage, self.stars, self.score)
 
     # ---------- 입력 ----------
     def handle_event(self, event):
@@ -276,7 +286,10 @@ class Game:
         if self.state == STATE_CLEARING:
             self.state_timer -= dt
             if self.state_timer <= 0:
-                self.end_turn()
+                if self.stage and self.lines_total >= self.goal_lines:
+                    self.stage_clear()
+                else:
+                    self.end_turn()
         elif self.state == STATE_SHUFFLING and not self.cube_view.busy:
             self.start_turn()
         elif self.state == STATE_OVER:
@@ -285,6 +298,12 @@ class Game:
                 self.state_timer = float('inf')
                 import gameover_mode
                 game_framework.push_mode(gameover_mode)
+        elif self.state == STATE_CLEAR:
+            self.state_timer -= dt
+            if self.state_timer <= 0:
+                self.state_timer = float('inf')
+                import stage_clear_mode
+                game_framework.push_mode(stage_clear_mode)
 
     # ---------- 그리기 ----------
     def draw(self):
@@ -370,7 +389,7 @@ def save_highscore(score):
 
 
 def open_pause():
-    if game.state == STATE_OVER:
+    if game.state in (STATE_OVER, STATE_CLEAR):
         return
     import pause_mode
     game_framework.push_mode(pause_mode)
