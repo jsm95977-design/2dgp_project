@@ -153,8 +153,9 @@ class CubeView:
         self.turn.screen_dir = screen_dir
         self.turn.radians_per_pixel = rotation_axis[axis] / (1.5 * pixels_per_unit)
 
-    def start_wheel_turn(self, wheel):
-        normal = max((face[0] for face in FACES), key=lambda n: transform(self.view, n)[2])
+    def start_wheel_turn(self, wheel, normal=None):
+        if normal is None:
+            normal = max((face[0] for face in FACES), key=lambda n: transform(self.view, n)[2])
         axis = next(i for i in range(3) if normal[i] != 0)
         self.turn = LayerTurn(axis, normal[axis])
         # 휠 위 = 화면 쪽 면을 바깥에서 봤을 때 시계 방향
@@ -184,9 +185,9 @@ class CubeView:
         return left <= x <= right and bottom <= y <= top
 
     def rotate_front(self, clockwise):
-        """앞면(화면 쪽 면)을 90도 돌린다. 키보드·버튼용"""
-        if self.enabled and self.turn is None and self.dragging is None and not self.queue:
-            self.start_wheel_turn(1 if clockwise else -1)
+        """블록이 만들어지는 앞면(+z)을 90도 돌린다. 시점을 돌려 놓아도 항상 같은 면. 키보드·버튼용"""
+        if self.enabled and self.turn is None and self.dragging in (None, 'orbit') and not self.queue:
+            self.start_wheel_turn(1 if clockwise else -1, normal=(0, 0, 1))
 
     def queue_turn(self, axis, layer, quarters):
         self.queue.append((axis, layer, quarters))
