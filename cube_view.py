@@ -64,8 +64,19 @@ class LayerTurn:
 
 
 class CubeView:
-    def __init__(self):
+    def __init__(self, center=None, scale=SCALE, area=None, allow_orbit=True, mark_images=None):
+        """center: 큐브 중심(pico2d 좌표, 왼쪽 아래 원점), area: 마우스를 받을 영역 (left, bottom, right, top)
+        mark_images: highlight 색의 앞면 칸 위에 번갈아 겹칠 이미지들"""
         self.cube = Cube()
+        self.scale = scale
+        self.area = area
+        self.allow_orbit = allow_orbit
+        self.enabled = True       # False면 플레이어 입력으로 돌릴 수 없다
+        self.on_turn = None       # 플레이어가 돌린 회전이 끝날 때마다 불린다
+        self.queue = []           # 애니메이션으로 돌릴 (axis, layer, quarters) 목록
+        self.highlight = None
+        self.mark_images = mark_images or []
+        self.mark_timer = 0.0
         self.tiles = {face[3]: load_image(os.path.join(TILE_DIR, 'tile_%s.png' % face[3])) for face in FACES}
         self.vertices = (SDL_Vertex * 4)()
         self.indices = (ctypes.c_int * 6)(0, 1, 2, 0, 2, 3)
@@ -73,7 +84,7 @@ class CubeView:
             vertex.tex_coord.x, vertex.tex_coord.y = u, v
             vertex.color.a = 255
 
-        self.center = get_canvas_width() / 2, get_canvas_height() / 2
+        self.center = center or (get_canvas_width() / 2, get_canvas_height() / 2)
         self.view = IDENTITY
         self.orbit(START_YAW, START_PITCH)
 
@@ -87,7 +98,7 @@ class CubeView:
         self.view = mat_mul(rotation(0, math.cos(pitch), math.sin(pitch)), self.view)
 
     def project(self, p):
-        s = SCALE * CAMERA_DISTANCE / (CAMERA_DISTANCE - p[2])
+        s = self.scale * CAMERA_DISTANCE / (CAMERA_DISTANCE - p[2])
         return self.center[0] + p[0] * s, self.center[1] + p[1] * s
 
     def model_view(self, cubie):
