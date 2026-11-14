@@ -396,13 +396,13 @@ class Game:
             # 남은 턴 수, 게이지 오른쪽에 스테이지 번호·목표 진행
             draw_number(str(max(0, self.turns_left())), 1100, 16, yellow=self.turns_left() <= 2)
             draw_text('스테이지 %d   회전 %d/%d' % (self.stage, self.energy, config.STAGE_ROTATIONS),
-                      260, 34, 20, (255, 230, 120))
+                      200, 26, 17, (255, 230, 120))
             goal = '목표: 줄 %d/%d' % (min(self.lines_total, self.goal_lines), self.goal_lines)
             for kind, name in (('sun', '해'), ('moon', '달')):
                 total = self.goal_specials[kind]
                 if total:
                     goal += '  %s %d/%d' % (name, total - self.specials_left(kind), total)
-            draw_text(goal, 470, 34, 20)
+            draw_text(goal, 200, 50, 17)    # 게이지 안 두 번째 줄
         else:
             draw_number(str(self.turn), 1100, 16)
 
