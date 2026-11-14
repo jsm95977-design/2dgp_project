@@ -247,6 +247,7 @@
 | `config.py` | 밸런스 수치 | 로직 |
 | `stage_data.py` | 스테이지 맵 저장·불러오기 (`stages.json`) | 로직 |
 | `mode_select_mode.py` · `stage_select_mode.py` · `stage_edit_mode.py` | 모드 선택, 스테이지 선택, 스테이지 편집 | 화면 |
+| `stage_clear_mode.py` | 스테이지 클리어 창 | 화면 |
 
 **턴 상태 머신** (`play_mode.py`): `rotate` → `clearing` → `shuffling` → `rotate` … / 게임 오버 시 `over`
 
