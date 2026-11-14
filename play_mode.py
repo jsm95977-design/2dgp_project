@@ -20,7 +20,7 @@ from ui import img, draw_tl, draw_number, inside, Button
 BOARD_POS = (650, 60)
 CELL0 = (694, 104)          # 칸 (0, 0)의 왼쪽 위
 CELL = 64
-CUBE_AREA = (48, 104, 336, 336)
+CUBE_AREA = (0, 92, 392, 464)   # 큐브 주변 왼쪽 빈 화면: 스티커는 층 회전, 빈 곳은 시점 돌리기
 CUBE_CENTER = (216, 272)
 CUBE_SCALE = 62
 COLOR_PANEL = (400, 104)
@@ -44,7 +44,7 @@ class Game:
         self.board = Board()
         left, top, w, h = CUBE_AREA
         self.cube_view = CubeView(center=(CUBE_CENTER[0], HEIGHT - CUBE_CENTER[1]), scale=CUBE_SCALE,
-                                  area=(left, HEIGHT - top - h, left + w, HEIGHT - top), allow_orbit=False,
+                                  area=(left, HEIGHT - top - h, left + w, HEIGHT - top), allow_orbit=True,
                                   mark_images=[img('cube/front_mark_0'), img('cube/front_mark_1')])
         self.cube_view.scramble(config.START_SCRAMBLE)
         self.cube_view.on_turn = self.on_rotate
