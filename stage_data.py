@@ -8,6 +8,7 @@ stages.json 한 파일에 스테이지 번호별로 저장한다. 게임을 껐�
   ...
 }
 칸 값은 board.Board와 같다: None(빈칸) / ["block", 색] / ["obstacle", 내구도]
+특수 블록: ["steel", 0] / ["bomb", 1~3] / ["sun", 0] / ["moon", 0]
 """
 import json
 import os
@@ -47,9 +48,24 @@ def normalize(stage):
             if not (isinstance(cell, list) and len(cell) == 2):
                 continue
             kind, value = cell
-            if (kind == 'block' and value in COLORS) or (kind == 'obstacle' and value in (1, 2, 3)):
+            if valid_cell(kind, value):
                 result['cells'][r][c] = (kind, value)
     return result
+
+
+VALID_VALUES = {
+    'obstacle': (1, 2, 3),
+    'steel': (0,),
+    'bomb': (1, 2, 3),       # 남은 턴
+    'sun': (0,),             # 맵에서는 항상 활성화 전
+    'moon': (0,),            # 맵에서는 항상 빈 달에서 시작
+}
+
+
+def valid_cell(kind, value):
+    if kind == 'block':
+        return value in COLORS
+    return value in VALID_VALUES.get(kind, ())
 
 
 def clamp(value, low, high):
