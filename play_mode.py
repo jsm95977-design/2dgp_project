@@ -223,8 +223,8 @@ class Game:
     def check_game_over(self):
         if not self.board.has_room_for_min_piece():
             self.game_over()
-        elif not self.stage and self.energy <= 0 and not self.any_view_placeable():
-            self.game_over()   # 스테이지는 회전을 다 써도 패스로 다음 턴에 다시 채워지므로 제외
+        elif self.energy <= 0 and not self.any_view_placeable():
+            self.game_over()   # 회전을 다 썼고 어느 면을 봐도 놓을 블록이 없으면 더 진행할 수 없다
 
     def any_view_placeable(self):
         """에너지가 없어도 시점은 돌릴 수 있으므로, 6면 x 4방향 중 놓을 수 있는 블록이 하나라도 있는지"""
