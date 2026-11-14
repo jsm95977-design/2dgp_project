@@ -81,20 +81,31 @@ class Board:
 
     def clear_lines(self):
         """꽉 찬 가로·세로 줄을 동시에 지운다.
-        돌려주는 값: (지운 줄 수, 사라진 칸 [(r, c, 색)], 금만 간 내구도 칸 [(r, c)])"""
+        돌려주는 값: (지운 줄 수, 사라진 칸 [(r, c, 색)], 금만 간 내구도 칸 [(r, c)])
+        해·달 변화는 self.last_specials에 남긴다: {'moon_up': [(r, c)], 'collected': [(r, c, 종류)]}"""
         rows, cols = self.full_lines()
-        targets = {(r, c) for r in rows for c in range(self.size)}
-        targets |= {(r, c) for c in cols for r in range(self.size)}
         removed, cracked = [], []
-        for r, c in sorted(targets):
+        self.last_specials = {'moon_up': [], 'collected': []}
+        for r, c in sorted(self.line_cells(rows, cols)):
             kind, value = self.cells[r][c]
             if kind == 'obstacle' and value > 1:
                 self.cells[r][c] = ('obstacle', value - 1)
                 cracked.append((r, c))
+            elif kind == 'sun' and value == 0:
+                pass                                   # 아직 활성화 안 된 해는 그대로 남는다
+            elif kind == 'moon' and value < MOON_FULL:
+                self.cells[r][c] = ('moon', value + 1)  # 한 번 지울 때 한 단계 (가로·세로 겹쳐도 1단계)
+                self.last_specials['moon_up'].append((r, c))
+            elif kind in ('sun', 'moon'):
+                self.cells[r][c] = None                # 활성화된 해, 보름달은 획득
+                self.last_specials['collected'].append((r, c, kind))
             else:
                 removed.append((r, c, value if kind == 'block' else 'white'))
                 self.cells[r][c] = None
         return len(rows) + len(cols), removed, cracked
+
+    def count(self, kind):
+        return sum(self.kind_at(r, c) == kind for r in range(self.size) for c in range(self.size))
 
     def empty_cells(self):
         return [(r, c) for r in range(self.size) for c in range(self.size) if self.cells[r][c] is None]
