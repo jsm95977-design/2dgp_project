@@ -200,14 +200,17 @@ class CubeView:
         for _ in range(count):
             self.cube.turn(random.randrange(3), random.choice((-1, 0, 1)), random.choice((1, 3)))
 
+    def reset_view(self):
+        """시점을 처음 각도로 되돌린다"""
+        self.view = IDENTITY
+        self.orbit(START_YAW, START_PITCH)
+
     def handle_event(self, event):
-        if not self.enabled:
-            if event.type == SDL_MOUSEBUTTONUP and self.dragging in ('orbit', 'grab'):
-                self.dragging = None
-            elif event.type == SDL_MOUSEBUTTONUP and self.dragging == 'layer':
+        # 입력이 잠기면 잡고 있던 층만 놓는다. 빈 공간 드래그(시점 돌리기)는 회전이 아니라서 계속 허용
+        if not self.enabled and self.dragging in ('grab', 'layer'):
+            if self.dragging == 'layer':
                 self.turn.target = round(self.turn.angle / QUARTER) * QUARTER
-                self.dragging = None
-            return
+            self.dragging = None
         if event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
             self.mouse = self.press = event.x, get_canvas_height() - 1 - event.y
             if not self.in_area(*self.mouse):
@@ -215,7 +218,7 @@ class CubeView:
             self.grabbed = self.pick(*self.mouse)
             if self.grabbed is None:
                 self.dragging = 'orbit' if self.allow_orbit else None
-            elif self.turn is None and not self.queue:
+            elif self.enabled and self.turn is None and not self.queue:
                 self.dragging = 'grab'
         elif event.type == SDL_MOUSEMOTION and self.dragging:
             x, y = event.x, get_canvas_height() - 1 - event.y
@@ -229,12 +232,12 @@ class CubeView:
                 self.turn.target = round(self.turn.angle / QUARTER) * QUARTER
             self.dragging = None
         elif event.type == SDL_MOUSEWHEEL and event.y != 0:
-            if self.turn is None and self.dragging is None and not self.queue:
+            if self.enabled and self.turn is None and self.dragging is None and not self.queue:
                 self.start_wheel_turn(event.y)
 
     def update(self, frame_time):
         self.mark_timer += frame_time
-        if self.turn is None and self.queue and self.dragging is None:
+        if self.turn is None and self.queue and self.dragging in (None, 'orbit'):
             axis, layer, quarters = self.queue.pop(0)
             self.turn = LayerTurn(axis, layer)
             self.turn.target = quarters * QUARTER
