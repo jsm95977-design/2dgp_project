@@ -1,6 +1,7 @@
 import ctypes
 import math
 import os
+import random
 
 from pico2d import *
 import pico2d.pico2d as pico2d_core
@@ -61,6 +62,7 @@ class LayerTurn:
         self.target = None  # 마우스를 놓으면 맞춰질 각도
         self.screen_dir = (0, 0)
         self.radians_per_pixel = 0
+        self.auto = False   # 자동 섞기로 생긴 회전이면 True (에너지 소모 없음)
 
 
 class CubeView:
@@ -170,13 +172,50 @@ class CubeView:
             along = drag_x * self.turn.screen_dir[0] + drag_y * self.turn.screen_dir[1]
             self.turn.angle = along * self.turn.radians_per_pixel
 
+    @property
+    def busy(self):
+        """돌아가는 중이거나 돌릴 회전이 남아 있으면 True"""
+        return self.turn is not None or bool(self.queue) or self.dragging in ('grab', 'layer')
+
+    def in_area(self, x, y):
+        if self.area is None:
+            return True
+        left, bottom, right, top = self.area
+        return left <= x <= right and bottom <= y <= top
+
+    def rotate_front(self, clockwise):
+        """앞면(화면 쪽 면)을 90도 돌린다. 키보드·버튼용"""
+        if self.enabled and self.turn is None and self.dragging is None and not self.queue:
+            self.start_wheel_turn(1 if clockwise else -1)
+
+    def queue_turn(self, axis, layer, quarters):
+        self.queue.append((axis, layer, quarters))
+
+    def queue_random_turns(self, count):
+        for _ in range(count):
+            self.queue_turn(random.randrange(3), random.choice((-1, 0, 1)), random.choice((1, 3)))
+
+    def scramble(self, count):
+        """애니메이션 없이 바로 섞는다"""
+        for _ in range(count):
+            self.cube.turn(random.randrange(3), random.choice((-1, 0, 1)), random.choice((1, 3)))
+
     def handle_event(self, event):
+        if not self.enabled:
+            if event.type == SDL_MOUSEBUTTONUP and self.dragging in ('orbit', 'grab'):
+                self.dragging = None
+            elif event.type == SDL_MOUSEBUTTONUP and self.dragging == 'layer':
+                self.turn.target = round(self.turn.angle / QUARTER) * QUARTER
+                self.dragging = None
+            return
         if event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
             self.mouse = self.press = event.x, get_canvas_height() - 1 - event.y
+            if not self.in_area(*self.mouse):
+                return
             self.grabbed = self.pick(*self.mouse)
             if self.grabbed is None:
-                self.dragging = 'orbit'
-            elif self.turn is None:
+                self.dragging = 'orbit' if self.allow_orbit else None
+            elif self.turn is None and not self.queue:
                 self.dragging = 'grab'
         elif event.type == SDL_MOUSEMOTION and self.dragging:
             x, y = event.x, get_canvas_height() - 1 - event.y
@@ -190,10 +229,16 @@ class CubeView:
                 self.turn.target = round(self.turn.angle / QUARTER) * QUARTER
             self.dragging = None
         elif event.type == SDL_MOUSEWHEEL and event.y != 0:
-            if self.turn is None and self.dragging is None:
+            if self.turn is None and self.dragging is None and not self.queue:
                 self.start_wheel_turn(event.y)
 
     def update(self, frame_time):
+        self.mark_timer += frame_time
+        if self.turn is None and self.queue and self.dragging is None:
+            axis, layer, quarters = self.queue.pop(0)
+            self.turn = LayerTurn(axis, layer)
+            self.turn.target = quarters * QUARTER
+            self.turn.auto = True
         if self.turn is None or self.turn.target is None:
             return
         remaining = self.turn.target - self.turn.angle
@@ -201,8 +246,11 @@ class CubeView:
         if abs(remaining) > step:
             self.turn.angle += math.copysign(step, remaining)
             return
-        self.cube.turn(self.turn.axis, self.turn.layer, round(self.turn.target / QUARTER))
-        self.turn = None
+        quarters = round(self.turn.target / QUARTER)
+        self.cube.turn(self.turn.axis, self.turn.layer, quarters)
+        finished, self.turn = self.turn, None
+        if quarters % 4 != 0 and not finished.auto and self.on_turn:
+            self.on_turn()
 
     def draw_quad(self, texture, quad, color):
         height = get_canvas_height()
