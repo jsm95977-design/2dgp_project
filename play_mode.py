@@ -137,7 +137,9 @@ class Game:
             self.combo += 1
             multiplier = 1 + config.COMBO_STEP * (self.combo - 1)
             gained += int(lines * lines * config.LINE_SCORE * multiplier)
-            self.energy = min(config.ENERGY_MAX, self.energy + config.ENERGY_GAIN[min(lines, 3)])
+            self.lines_total += lines
+            if not self.stage:
+                self.energy = min(config.ENERGY_MAX, self.energy + config.ENERGY_GAIN[min(lines, 3)])
             for i, (r, c, color) in enumerate(removed):
                 left, top = cell_tl(r, c)
                 self.effects.append(SheetEffect('fx/fx_clear_' + color, 8, left - 16, top - 16, delay=0.01 * i))
@@ -164,7 +166,7 @@ class Game:
 
     def end_turn(self, extra_obstacles=0):
         """정리: 방해 블록 생성 → 큐브 자동 섞기. 섞기가 끝나면 다음 턴."""
-        count = config.obstacles_for_turn(self.turn) + extra_obstacles
+        count = (0 if self.stage else config.obstacles_for_turn(self.turn)) + extra_obstacles
         hps = [config.DURABLE_HP if self.turn >= config.DURABLE_FROM_TURN and random.random() < config.DURABLE_CHANCE
                else config.NORMAL_HP for _ in range(count)]
         for r, c in self.board.spawn_obstacles(hps):
@@ -176,8 +178,8 @@ class Game:
     def check_game_over(self):
         if not self.board.has_room_for_min_piece():
             self.game_over()
-        elif self.energy <= 0 and not self.any_view_placeable():
-            self.game_over()
+        elif not self.stage and self.energy <= 0 and not self.any_view_placeable():
+            self.game_over()   # 스테이지는 회전을 다 써도 패스로 다음 턴에 다시 채워지므로 제외
 
     def any_view_placeable(self):
         """에너지가 없어도 시점은 돌릴 수 있으므로, 6면 x 4방향 중 놓을 수 있는 블록이 하나라도 있는지"""
