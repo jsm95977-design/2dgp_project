@@ -45,6 +45,7 @@ def handle_events(events):
             return
         if endless_button.handle_event(event):
             import play_mode
+            play_mode.stage = None     # 무한 모드
             game_framework.change_mode(play_mode)
             return
         if stage_button.handle_event(event):
