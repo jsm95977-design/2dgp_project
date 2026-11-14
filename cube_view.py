@@ -268,6 +268,14 @@ class CubeView:
             self.draw_quad(None, quad, tuple(int(c * light) for c in BODY_COLOR))
             if face in cubie.stickers:
                 self.draw_quad(self.tiles[face[3]].texture, quad, (int(255 * light),) * 3)
+                if self.is_marked(cubie, face):
+                    mark = self.mark_images[int(self.mark_timer * 3) % len(self.mark_images)]
+                    self.draw_quad(mark.texture, quad, (255, 255, 255))
+
+    def is_marked(self, cubie, face):
+        """지정 색인 앞면 칸인가"""
+        return (self.mark_images and face[3] == self.highlight and cubie.pos[2] == 1
+                and transform(cubie.rot, face[0]) == (0, 0, 1))
 
     def draw(self):
         # 돌아가는 층과 나머지가 겹치므로, 층 단위로 카메라에서 먼 쪽부터 그린다
