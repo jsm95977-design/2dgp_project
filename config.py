@@ -38,4 +38,16 @@ def shuffles_for_turn(turn):
 
 START_SCRAMBLE = 25            # 시작할 때 큐브를 섞는 횟수
 
+# 스테이지 모드: 에너지 대신 턴마다 회전 횟수 제한, 방해 블록은 맵에 놓인 것만 (패스 패널티는 적용)
+STAGE_ROTATIONS = 5            # 턴당 최대 회전 수
+
+
+def stars_for(turns_left, turn_limit):
+    """목표를 달성했을 때 남은 턴 수로 별 1~3개"""
+    if turns_left >= turn_limit * 0.4:
+        return 3
+    if turns_left >= turn_limit * 0.2:
+        return 2
+    return 1
+
 HIGHSCORE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'highscore.txt')
