@@ -4,6 +4,13 @@ import random
 from config import BOARD_SIZE, MIN_PIECE_CELLS
 
 # 칸 값: None(빈칸) | ('block', 색) | ('obstacle', 내구도)
+# 스테이지 특수 블록 (맵에만 있다):
+#   ('steel', 0)      강철: 절대 깨지지 않고, 강철이 있는 가로·세로 줄은 지워지지 않는다
+#   ('bomb', 남은 턴)  폭탄: 턴이 끝날 때마다 1씩 줄고 0이 되면 주변 3x3의 블록을 없앤다 (점수 없음)
+#   ('sun', 0/1)      해: 주변 8칸이 모두 차면 1(활성화). 활성화된 뒤 해가 든 줄을 지우면 획득
+#   ('moon', 0~3)     달: 달이 든 줄이 지워질 때마다 초승(1)→반달(2)→보름달(3). 보름달 뒤 한 번 더 지우면 획득
+SPECIAL_KINDS = ('steel', 'bomb', 'sun', 'moon')
+MOON_FULL = 3
 
 
 class Board:
@@ -35,10 +42,29 @@ class Board:
                     return True
         return False
 
-    def full_lines(self):
-        rows = [r for r in range(self.size) if all(self.cells[r][c] is not None for c in range(self.size))]
-        cols = [c for c in range(self.size) if all(self.cells[r][c] is not None for r in range(self.size))]
+    def kind_at(self, r, c):
+        cell = self.cells[r][c]
+        return cell[0] if cell else None
+
+    def line_cells(self, rows, cols):
+        cells = {(r, c) for r in rows for c in range(self.size)}
+        return cells | {(r, c) for c in cols for r in range(self.size)}
+
+    def full_lines(self, include_steel=False):
+        """꽉 찬 가로·세로 줄. 강철이 든 줄은 지울 수 없으므로 빼고 돌려준다."""
+        def ok(cells):
+            cells = list(cells)
+            return (all(self.cells[r][c] is not None for r, c in cells) and
+                    (include_steel or not any(self.kind_at(r, c) == 'steel' for r, c in cells)))
+        n = self.size
+        rows = [r for r in range(n) if ok((r, c) for c in range(n))]
+        cols = [c for c in range(n) if ok((r, c) for r in range(n))]
         return rows, cols
+
+    def steel_blocked(self):
+        """꽉 찼지만 강철 때문에 지워지지 않는 줄에 든 강철 칸들 (버티는 연출용)"""
+        rows, cols = self.full_lines(include_steel=True)
+        return [(r, c) for r, c in sorted(self.line_cells(rows, cols)) if self.kind_at(r, c) == 'steel']
 
     def clear_lines(self):
         """꽉 찬 가로·세로 줄을 동시에 지운다.
