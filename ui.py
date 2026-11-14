@@ -5,7 +5,7 @@ pico2d는 왼쪽 아래 원점, 이미지 중심 기준이라 여기서 바꿔 �
 마우스 이벤트의 (event.x, event.y)는 원래 왼쪽 위 기준이므로 UI 판정에는 그대로 쓴다."""
 import os
 
-from pico2d import load_image, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
+from pico2d import load_image, load_font, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
 
 from settings import HEIGHT
 
@@ -13,6 +13,32 @@ PIXEL_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', '
 DIGITS = '0123456789+x/'
 
 _cache = {}
+
+
+FONT_CANDIDATES = (
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'fonts', 'Galmuri11.ttf'),
+    'C:/Windows/Fonts/malgunbd.ttf',
+    'C:/Windows/Fonts/malgun.ttf',
+)
+_fonts = {}
+
+
+def font(size):
+    """한글 폰트. assets/fonts/Galmuri11.ttf를 넣으면 그것을 쓰고, 없으면 맑은 고딕. 둘 다 없으면 None"""
+    if size not in _fonts:
+        _fonts[size] = None
+        for path in FONT_CANDIDATES:
+            if os.path.exists(path):
+                _fonts[size] = load_font(path, size)
+                break
+    return _fonts[size]
+
+
+def draw_text(text, left, top, size=20, color=(255, 255, 255)):
+    """왼쪽 위 기준 글자 그리기 (top은 글자 줄의 위쪽)"""
+    f = font(size)
+    if f:
+        f.draw(left, HEIGHT - top - size * 0.7, text, color)
 
 
 def img(path):
