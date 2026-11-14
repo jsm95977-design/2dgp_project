@@ -1,6 +1,7 @@
 """스테이지 편집 모드: 스테이지 선택 화면에서 F1로 들어온다.
 
-- 8x8 보드에 블록(6색)·방해 블록(내구도 1~3)을 칠하고, 턴 제한·목표 줄 수를 정한다.
+- 8x8 보드에 블록(6색)·방해 블록(내구도 1~3)·특수 블록(강철·폭탄·해·달)을 칠하고,
+  턴 제한·목표 줄 수를 정한다.
 - 바꿀 때마다 stages.json에 바로 저장되어 게임을 껐다 켜도 남는다.
 - F1 / ESC / 뒤로 버튼으로 스테이지 선택 화면에 돌아간다.
 """
@@ -10,6 +11,7 @@ import game_framework
 import stage_data
 from config import COLORS, BOARD_SIZE
 from settings import HEIGHT
+from cell_view import draw_cell
 from ui import img, draw_tl, draw_number, draw_text, inside, Button
 
 BOARD_POS = (650, 60)
@@ -18,12 +20,20 @@ CELL = 64
 
 # 도구: (이름, 칸 값). 숫자 키 1~0 순서와 같다
 TOOLS = [(color, ('block', color)) for color in COLORS] + \
-        [('방해1', ('obstacle', 1)), ('방해2', ('obstacle', 2)), ('방해3', ('obstacle', 3)), ('지우개', None)]
+        [('방해1', ('obstacle', 1)), ('방해2', ('obstacle', 2)), ('방해3', ('obstacle', 3)), ('지우개', None)] +         [('강철', ('steel', 0)), ('폭탄 3턴', ('bomb', 3)), ('폭탄 2턴', ('bomb', 2)), ('폭탄 1턴', ('bomb', 1)),
+         ('해', ('sun', 0)), ('달', ('moon', 0))]      # 특수 블록은 클릭으로만 고른다
+TOOL_HELP = {
+    'steel': '절대 안 깨짐. 강철이 있는 가로·세로 줄은 지울 수 없다',
+    'bomb': '턴마다 숫자가 줄고 0이면 주변 3x3 블록을 없앤다 (점수 없음)',
+    'sun': '주변 8칸을 채우면 활성화, 그 뒤 해가 든 줄을 지우면 획득',
+    'moon': '든 줄을 3번 지우면 보름달, 그 뒤 한 번 더 지우면 획득',
+}
 TOOL_KEYS = [SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_5, SDLK_6, SDLK_7, SDLK_8, SDLK_9, SDLK_0]
 COLOR_NAMES = {'red': '빨강', 'orange': '주황', 'yellow': '노랑', 'green': '초록', 'blue': '파랑', 'white': '흰색'}
 
 PANEL = (24, 104, 600, 536)          # 왼쪽 패널 (왼쪽, 위, 너비, 높이)
-TOOL0, TOOL_PITCH = (56, 176), 92    # 도구 칸 첫 위치와 간격 (한 줄 5개, 2줄)
+TOOL0, TOOL_PITCH = (56, 176), (68, 92)   # 도구 칸 첫 위치와 가로·세로 간격
+TOOLS_PER_ROW = 8
 SETTING_TOP = 452                    # 턴 제한 줄 위치 (목표 줄은 +64)
 
 stage = 1
@@ -33,6 +43,7 @@ painting = None      # 마우스를 누른 채 칠하는 중이면 칠할 값 ('
 back_button = None
 arrows = {}          # (설정 이름, -1/+1) → 화살표 왼쪽 위
 saved_timer = 0.0
+anim_time = 0.0      # 특수 블록 애니메이션용
 
 
 def cell_tl(r, c):
@@ -47,7 +58,8 @@ def cell_at(x, y):
 
 
 def tool_tl(i):
-    return TOOL0[0] + TOOL_PITCH * (i % 5), TOOL0[1] + TOOL_PITCH * (i // 5)
+    row, col = divmod(i, TOOLS_PER_ROW)
+    return TOOL0[0] + TOOL_PITCH[0] * col, TOOL0[1] + TOOL_PITCH[1] * row
 
 
 def tool_at(x, y):
@@ -155,17 +167,16 @@ def handle_events(events):
 
 
 def update(dt):
-    global saved_timer
+    global saved_timer, anim_time
     saved_timer = max(0.0, saved_timer - dt)
+    anim_time += dt
 
 
 def draw_cell_value(value, left, top):
     if value is None:
         draw_tl(img('board/cell_empty'), left, top)
-    elif value[0] == 'block':
-        draw_tl(img('board/block_' + value[1]), left, top)
     else:
-        draw_tl(img('board/obstacle_hp%d' % value[1]), left, top)
+        draw_cell(value, left, top, t=anim_time)
 
 
 def draw():
@@ -180,7 +191,7 @@ def draw():
     draw_rectangle(left, HEIGHT - top - h, left + w, HEIGHT - top, 36, 33, 72, 235, True)
     draw_rectangle(left, HEIGHT - top - h, left + w, HEIGHT - top, 20, 18, 45, 255)
 
-    draw_text('도구 (숫자 키 1~0)', 56, 128, 20)
+    draw_text('도구 (클릭, 숫자 키 1~0)', 56, 128, 20)
     if saved_timer > 0:
         draw_text('자동 저장됨', 500, 128, 18, (140, 230, 140))
     for i, (name, value) in enumerate(TOOLS):
@@ -188,8 +199,12 @@ def draw():
         draw_cell_value(value, x, y)
         if i == tool:
             draw_tl(img('cube/front_mark_0'), x, y)
-        draw_text('%d' % ((i + 1) % 10), x + 2, y + 66, 14, (200, 200, 230))
+        if i < len(TOOL_KEYS):
+            draw_text('%d' % ((i + 1) % 10), x + 2, y + 66, 14, (200, 200, 230))
     draw_text('선택: ' + COLOR_NAMES.get(TOOLS[tool][0], TOOLS[tool][0]), 56, 376, 20, (255, 230, 120))
+    value = TOOLS[tool][1]
+    if value and value[0] in TOOL_HELP:
+        draw_text(TOOL_HELP[value[0]], 56, 408, 16, (220, 220, 240))
 
     draw_text('턴 제한', 56, SETTING_TOP + 8, 22)
     draw_text('목표 줄 삭제', 56, SETTING_TOP + 72, 22)
