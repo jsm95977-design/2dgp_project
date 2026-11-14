@@ -124,7 +124,7 @@ def draw():
     draw_tl(img('board/play_bg'), 0, 0)
     draw_tl(img('windows/title_stage_select'), *TITLE_POS)
     back_button.draw()
-    draw_text('F1 : 편집 모드 (스테이지를 클릭해 고른 뒤)', 40, 672, 18)
+    draw_text('클릭: 선택    한 번 더 클릭 / Enter: 플레이 (노란 번호 = 맵 있음)    F1: 편집 모드', 40, 672, 18)
     for stage in range(1, STAGE_COUNT + 1):
         left, top = tile_tl(stage)
         if not is_unlocked(stage):
