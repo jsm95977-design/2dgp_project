@@ -136,7 +136,15 @@ class Game:
 
         n = len(self.piece)
         gained = n * n * config.PLACE_SCORE
+        # 순서: 배치 → 해 활성화 확인 → 줄 삭제 (활성화된 해가 바로 같은 줄 삭제로 획득될 수 있다)
+        for r, c in board.activate_suns():
+            left, top = cell_tl(r, c)
+            self.effects.append(SheetEffect('special/fx_sunrise', 8, left - 64, top - 64, size=192, fps=12))
+        self.steel_hit = board.steel_blocked()
+        if self.steel_hit:
+            self.steel_hit_timer = 0.4
         lines, removed, cracked = board.clear_lines()
+        self.show_special_changes(board.last_specials)
         if lines:
             self.combo += 1
             multiplier = 1 + config.COMBO_STEP * (self.combo - 1)
@@ -161,6 +169,16 @@ class Game:
         self.effects.append(FloatingText(left + 32, top - 8, number='+%d' % gained, life=0.9))
 
         self.state, self.state_timer = STATE_CLEARING, CLEAR_DELAY
+
+    def show_special_changes(self, specials):
+        """줄 삭제로 달이 차오르거나 해·달을 획득했을 때 이펙트"""
+        for r, c in specials['moon_up']:
+            left, top = cell_tl(r, c)
+            self.effects.append(SheetEffect('special/fx_moon_up', 6, left - 16, top - 16, size=96, fps=10))
+        for r, c, kind in specials['collected']:
+            left, top = cell_tl(r, c)
+            name = 'special/fx_moon_collect' if kind == 'moon' else 'special/fx_sunrise'
+            self.effects.append(SheetEffect(name, 8, left - 64, top - 64, size=192, fps=12))
 
     def pass_turn(self):
         if not self.can_act():
