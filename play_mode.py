@@ -275,7 +275,10 @@ class Game:
         self.cube_view.update(dt)
         if self.state == STATE_ROTATE and not self.dragging:
             self.refresh_piece()   # 시점을 돌리면 보이는 앞면이 바뀌므로 매 프레임 다시 읽는다
-        self.mascot.nervous = self.energy <= config.ENERGY_LOW
+        if self.stage:
+            self.mascot.nervous = self.turns_left() <= 1 and self.lines_total < self.goal_lines
+        else:
+            self.mascot.nervous = self.energy <= config.ENERGY_LOW
         self.mascot.update(dt)
         for effect in self.effects:
             effect.update(dt)
