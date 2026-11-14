@@ -2,7 +2,7 @@
 from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDLK_RETURN, SDLK_SPACE
 
 import game_framework
-import play_mode
+import mode_select_mode
 from cube_view import CubeView
 from settings import HEIGHT
 from ui import img, draw_tl, Button
@@ -44,7 +44,7 @@ def handle_events(events):
             game_framework.quit()
             return
         if start_button.handle_event(event) or (event.type == SDL_KEYDOWN and event.key in (SDLK_RETURN, SDLK_SPACE)):
-            game_framework.change_mode(play_mode)
+            game_framework.change_mode(mode_select_mode)
             return
 
 
