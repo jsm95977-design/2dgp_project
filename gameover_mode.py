@@ -3,6 +3,7 @@ from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDLK_RETURN, SDLK_SPACE
 
 import game_framework
 import play_mode
+import stage_data
 from ui import img, draw_tl, draw_number, Button
 
 WINDOW = (288, 120)
@@ -15,7 +16,10 @@ def init():
     retry_button = Button('buttons/btn_retry', WINDOW[0] + 24, WINDOW[1] + 336)
     title_button = Button('buttons/btn_title', WINDOW[0] + 352, WINDOW[1] + 336)
     score = play_mode.game.score
-    best = play_mode.load_highscore()
+    if play_mode.game.stage:   # 스테이지는 그 스테이지의 최고 점수
+        best = stage_data.load_progress().get(play_mode.game.stage, {'best': 0})['best']
+    else:
+        best = play_mode.load_highscore()
 
 
 def finish():
