@@ -66,6 +66,19 @@ class Board:
         rows, cols = self.full_lines(include_steel=True)
         return [(r, c) for r, c in sorted(self.line_cells(rows, cols)) if self.kind_at(r, c) == 'steel']
 
+    def activate_suns(self):
+        """주변 8칸이 모두 찬 해를 활성화한다 (판 바깥은 찬 칸으로 친다). 새로 활성화된 위치 목록"""
+        activated = []
+        for r in range(self.size):
+            for c in range(self.size):
+                if self.cells[r][c] != ('sun', 0):
+                    continue
+                if all(not self.inside(r + dr, c + dc) or self.cells[r + dr][c + dc] is not None
+                       for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr, dc) != (0, 0)):
+                    self.cells[r][c] = ('sun', 1)
+                    activated.append((r, c))
+        return activated
+
     def clear_lines(self):
         """꽉 찬 가로·세로 줄을 동시에 지운다.
         돌려주는 값: (지운 줄 수, 사라진 칸 [(r, c, 색)], 금만 간 내구도 칸 [(r, c)])"""
