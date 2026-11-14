@@ -294,13 +294,16 @@ class CubeView:
                     self.draw_quad(mark.texture, quad, (255, 255, 255))
 
     def is_marked(self, cubie, face):
-        """지정 색인 앞면 칸인가"""
-        return (self.mark_images and face[3] == self.highlight and cubie.pos[2] == 1
-                and transform(cubie.rot, face[0]) == (0, 0, 1))
+        """지금 보이는 앞면에서 지정 색인 칸인가"""
+        normal = self.front_normal
+        return (self.mark_images and face[3] == self.highlight
+                and sum(p * n for p, n in zip(cubie.pos, normal)) == 1
+                and transform(cubie.rot, face[0]) == normal)
 
     def draw(self):
         # 돌아가는 층과 나머지가 겹치므로, 층 단위로 카메라에서 먼 쪽부터 그린다
         eye = transform(tuple(zip(*self.view)), (0, 0, CAMERA_DISTANCE))
+        self.front_normal = self.front_frame()[0]
 
         def draw_order(item):
             cubie, m = item
