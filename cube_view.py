@@ -185,9 +185,9 @@ class CubeView:
         return left <= x <= right and bottom <= y <= top
 
     def rotate_front(self, clockwise):
-        """블록이 만들어지는 앞면(+z)을 90도 돌린다. 시점을 돌려 놓아도 항상 같은 면. 키보드·버튼용"""
+        """지금 화면에 보이는 앞면을 90도 돌린다. 키보드·버튼용"""
         if self.enabled and self.turn is None and self.dragging in (None, 'orbit') and not self.queue:
-            self.start_wheel_turn(1 if clockwise else -1, normal=(0, 0, 1))
+            self.start_wheel_turn(1 if clockwise else -1, normal=self.front_frame()[0])
 
     def queue_turn(self, axis, layer, quarters):
         self.queue.append((axis, layer, quarters))
