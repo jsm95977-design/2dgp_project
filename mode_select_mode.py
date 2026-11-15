@@ -49,8 +49,13 @@ def handle_events(events):
             game_framework.change_mode(play_mode)
             return
         if stage_button.handle_event(event):
-            import stage_select_mode
-            game_framework.change_mode(stage_select_mode)
+            import story_data
+            if story_data.opening_seen():
+                import region_select_mode
+                game_framework.change_mode(region_select_mode)
+            else:                                   # 처음 한 번만 오프닝 컷신
+                import opening_mode
+                game_framework.change_mode(opening_mode)
             return
 
 
