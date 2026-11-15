@@ -82,10 +82,12 @@ class Board:
     def clear_lines(self):
         """꽉 찬 가로·세로 줄을 동시에 지운다.
         돌려주는 값: (지운 줄 수, 사라진 칸 [(r, c, 색)], 금만 간 내구도 칸 [(r, c)])
-        해·달 변화는 self.last_specials에 남긴다: {'moon_up': [(r, c)], 'collected': [(r, c, 종류)]}"""
+        해·달 변화는 self.last_specials에 남긴다: {'moon_up': [(r, c)], 'collected': [(r, c, 종류)]}
+        스테이지 목표용으로 부순 것을 self.last_broken에 남긴다: {'colors': {색: 개수}, 'stones': 완전히 부순 돌 수}"""
         rows, cols = self.full_lines()
         removed, cracked = [], []
         self.last_specials = {'moon_up': [], 'collected': []}
+        self.last_broken = {'colors': {}, 'stones': 0}
         for r, c in sorted(self.line_cells(rows, cols)):
             kind, value = self.cells[r][c]
             if kind == 'obstacle' and value > 1:
@@ -101,6 +103,10 @@ class Board:
                 self.last_specials['collected'].append((r, c, kind))
             else:
                 removed.append((r, c, value if kind == 'block' else 'white'))
+                if kind == 'block':
+                    self.last_broken['colors'][value] = self.last_broken['colors'].get(value, 0) + 1
+                elif kind == 'obstacle':
+                    self.last_broken['stones'] += 1     # 내구도 1에서 지워진 돌 = 완전히 부숨
                 self.cells[r][c] = None
         return len(rows) + len(cols), removed, cracked
 
