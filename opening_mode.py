@@ -4,6 +4,7 @@
 - 대사는 한 글자씩 나타난다. 다 나오기 전에 클릭하면 한 번에 다 보여 준다.
 - 클릭 / 스페이스 / Enter: 다음 대사. 장면의 마지막 대사 다음에는 다음 장면 그림.
 - 마지막 대사 다음, 또는 건너뛰기(버튼·ESC)를 누르면 본 것으로 기록하고 지역 선택으로 간다.
+- script를 바꾸면 다른 이야기도 같은 화면으로 보여 줄 수 있다 (지역 선택의 '스토리 보기').
 """
 from pico2d import SDL_KEYDOWN, SDLK_ESCAPE, SDLK_RETURN, SDLK_SPACE, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
 
@@ -20,6 +21,7 @@ NEXT_ARROW = (1168, 644)
 ARROW_BLINK = 0.4
 CHARS_PER_SEC = 30
 
+script = story_data.OPENING     # 보여 줄 이야기 (장면 목록)
 scene_i = line_i = 0
 shown_chars = 0.0
 arrow_timer = 0.0
@@ -32,7 +34,7 @@ def image_name(path):
 
 
 def current_line():
-    return story_data.OPENING[scene_i]['lines'][line_i]
+    return script[scene_i]['lines'][line_i]
 
 
 def line_done():
@@ -46,15 +48,16 @@ def advance():
         shown_chars = len(current_line()[1])
         return
     line_i += 1
-    if line_i >= len(story_data.OPENING[scene_i]['lines']):
+    if line_i >= len(script[scene_i]['lines']):
         scene_i, line_i = scene_i + 1, 0
     shown_chars = 0.0
-    if scene_i >= len(story_data.OPENING):
+    if scene_i >= len(script):
         finish_opening()
 
 
 def finish_opening():
-    story_data.mark_opening_seen()
+    if script is story_data.OPENING:
+        story_data.mark_opening_seen()
     import region_select_mode
     game_framework.change_mode(region_select_mode)
 
@@ -102,7 +105,7 @@ def update(dt):
 
 
 def draw():
-    scene = story_data.OPENING[scene_i]
+    scene = script[scene_i]
     draw_tl(img(image_name(scene['image'])), 0, 0)
     draw_tl(img('story/dialog_box'), *DIALOG_BOX)
     who, text = current_line()
