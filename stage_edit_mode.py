@@ -1,5 +1,6 @@
 """스테이지 편집 모드: 스테이지 선택 화면에서 F1로 들어온다.
 
+- 말풍선 입력칸을 클릭하면 스테이지 대사를 쓸 수 있다 (한글 가능, Enter/ESC/바깥 클릭으로 끝).
 - 8x8 보드에 블록(6색)·방해 블록(내구도 1~3)·특수 블록(강철·폭탄·해·달)을 칠하고,
   턴 제한·목표 줄 수를 정한다.
 - 바꿀 때마다 stages.json에 바로 저장되어 게임을 껐다 켜도 남는다.
@@ -12,7 +13,8 @@ import stage_data
 from config import COLORS, BOARD_SIZE
 from settings import HEIGHT
 from cell_view import draw_cell
-from ui import img, draw_tl, draw_number, draw_text, inside, Button
+from input_events import start_text_input, stop_text_input
+from ui import fill_tl, text_width, img, draw_tl, draw_number, draw_text, inside, Button
 
 BOARD_POS = (650, 60)
 CELL0 = (694, 104)
@@ -35,6 +37,7 @@ PANEL = (24, 104, 600, 536)          # 왼쪽 패널 (왼쪽, 위, 너비, 높�
 TOOL0, TOOL_PITCH = (56, 176), (68, 92)   # 도구 칸 첫 위치와 가로·세로 간격
 TOOLS_PER_ROW = 8
 SETTING_TOP = 452                    # 턴 제한 줄 위치 (목표 줄은 +64)
+MESSAGE_BOX = (150, 562, 450, 40)    # 말풍선 대사 입력칸 (왼쪽, 위, 너비, 높이)
 
 stage = 1
 data = None
@@ -44,6 +47,8 @@ back_button = None
 arrows = {}          # (설정 이름, -1/+1) → 화살표 왼쪽 위
 saved_timer = 0.0
 anim_time = 0.0      # 특수 블록 애니메이션용
+editing = False      # 말풍선 대사를 입력하는 중
+composing = ''       # 한글 입력기에서 조합 중인 글자 (아직 확정 전)
 
 
 def cell_tl(r, c):
@@ -99,7 +104,49 @@ def clear_board():
     save()
 
 
+def start_editing():
+    global editing, composing
+    editing, composing = True, ''
+    start_text_input()
+
+
+def finish_editing():
+    global editing, composing
+    if editing:
+        editing, composing = False, ''
+        stop_text_input()
+
+
+def type_text(text):
+    message = (data['message'] + text)[:stage_data.MESSAGE_MAX]
+    if message != data['message']:
+        data['message'] = message
+        save()
+
+
+def handle_text_event(event):
+    """입력 중일 때의 이벤트. 다른 단축키(숫자·Delete·F1)는 무시한다. 처리했으면 True"""
+    global composing
+    if event.type == SDL_TEXTINPUT:
+        composing = ''
+        type_text(event.text)
+    elif event.type == SDL_TEXTEDITING:
+        composing = event.text
+    elif event.type == SDL_KEYDOWN:
+        if event.key in (SDLK_RETURN, SDLK_KP_ENTER, SDLK_ESCAPE):
+            finish_editing()
+        elif event.key == SDLK_BACKSPACE and not composing:   # 조합 중에는 입력기가 지운다
+            if data['message']:
+                data['message'] = data['message'][:-1]
+                save()
+    elif event.type == SDL_MOUSEBUTTONDOWN and not inside(event.x, event.y, *MESSAGE_BOX):
+        finish_editing()
+        return False     # 바깥 클릭은 원래 동작(도구 고르기·칠하기)도 한다
+    return True
+
+
 def go_back():
+    finish_editing()
     import stage_select_mode
     game_framework.change_mode(stage_select_mode)
 
@@ -108,6 +155,7 @@ def init():
     global data, tool, painting, back_button, saved_timer
     data = stage_data.load(stage)
     tool, painting, saved_timer = 0, None, 0.0
+    finish_editing()
     back_button = Button('buttons/icon_back', 16, 16, hit_h=64)
     for i, key in enumerate(('turns', 'goal_lines')):
         top = SETTING_TOP + 64 * i
@@ -116,7 +164,7 @@ def init():
 
 
 def finish():
-    pass
+    finish_editing()
 
 
 def pause():
@@ -130,6 +178,10 @@ def resume():
 def handle_events(events):
     global tool, painting
     for event in events:
+        if editing and handle_text_event(event):
+            continue
+        if event.type in (SDL_TEXTINPUT, SDL_TEXTEDITING):
+            continue
         if event.type == SDL_KEYDOWN:
             if event.key in (SDLK_F1, SDLK_ESCAPE):
                 go_back()
@@ -146,6 +198,9 @@ def handle_events(events):
 
         if event.type == SDL_MOUSEBUTTONDOWN:
             x, y = event.x, event.y
+            if event.button == SDL_BUTTON_LEFT and inside(x, y, *MESSAGE_BOX):
+                start_editing()
+                continue
             picked = tool_at(x, y)
             if picked is not None and event.button == SDL_BUTTON_LEFT:
                 tool = picked
@@ -177,6 +232,26 @@ def draw_cell_value(value, left, top):
         draw_tl(img('board/cell_empty'), left, top)
     else:
         draw_cell(value, left, top, t=anim_time)
+
+
+def draw_message_box():
+    left, top, w, h = MESSAGE_BOX
+    draw_text('말풍선', 56, top + 8, 22)
+    fill_tl(left, top, w, h, (255, 230, 120) if editing else (90, 84, 140))   # 테두리 (입력 중이면 노랑)
+    fill_tl(left + 2, top + 2, w - 4, h - 4, (20, 18, 45))
+    text = data['message'] + (composing if editing else '')
+    if not text and not editing:
+        draw_text('클릭해서 대사 입력 (최대 %d자)' % stage_data.MESSAGE_MAX, left + 12, top + 10, 18, (130, 126, 170))
+    else:
+        inner = w - 24 - 70
+        shown = text
+        while shown and text_width(shown, 18) > inner:   # 길면 끝부분만 보인다
+            shown = shown[1:]
+        draw_text(shown, left + 12, top + 10, 18)
+        if editing and int(anim_time * 2) % 2 == 0:     # 깜빡이는 커서
+            fill_tl(left + 12 + text_width(shown, 18) + 2, top + 9, 2, 22, (255, 230, 120))
+    count = '%d/%d' % (len(data['message']), stage_data.MESSAGE_MAX)
+    draw_text(count, left + w - 12 - text_width(count, 16), top + 12, 16, (150, 146, 190))
 
 
 def draw():
@@ -215,8 +290,9 @@ def draw():
         draw_number(text, 388 - 18 * len(text), top, yellow=True)   # 두 화살표 사이 가운데
         draw_tl(img('cube/arrow_right'), *arrows[(key, +1)])
 
-    draw_text('좌클릭·드래그: 칠하기    우클릭: 지우기    Delete: 전체 지우기', 40, 580, 16, (220, 220, 240))
-    draw_text('F1 / ESC: 나가기 (바꿀 때마다 자동 저장)', 40, 606, 16, (220, 220, 240))
+    draw_message_box()
+    draw_text('좌클릭·드래그 칠하기 · 우클릭 지우기 · Delete 전체 지우기 · F1/ESC 나가기', 40, 612, 16,
+              (220, 220, 240))
 
     # 보드
     draw_tl(img('board/board'), *BOARD_POS)
