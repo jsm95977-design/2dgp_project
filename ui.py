@@ -5,7 +5,10 @@ pico2d는 왼쪽 아래 원점, 이미지 중심 기준이라 여기서 바꿔 �
 마우스 이벤트의 (event.x, event.y)는 원래 왼쪽 위 기준이므로 UI 판정에는 그대로 쓴다."""
 import os
 
-from pico2d import load_image, load_font, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
+import ctypes
+
+from pico2d import load_image, load_font, draw_rectangle, SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_BUTTON_LEFT
+from sdl2.sdlttf import TTF_SizeUTF8
 
 from settings import HEIGHT
 
@@ -40,6 +43,43 @@ def draw_text(text, left, top, size=20, color=(255, 255, 255)):
     f = font(size)
     if f:
         f.draw(left, HEIGHT - top - size * 0.7, text, color)
+
+
+def text_width(text, size=20):
+    """draw_text로 그렸을 때 글자 너비(px). 글꼴이 없으면 대략 글자 수 x 크기"""
+    f = font(size)
+    if not f or not text:
+        return len(text) * size
+    w, h = ctypes.c_int(), ctypes.c_int()
+    TTF_SizeUTF8(f.font, text.encode('utf-8'), ctypes.byref(w), ctypes.byref(h))
+    return w.value
+
+
+def wrap_text(text, size, width, max_lines=None):
+    """width(px) 안에 들어가게 줄을 나눈다. 띄어쓰기에서 먼저 나누고, 한 단어가 너무 길면 글자 단위로 나눈다."""
+    lines = []
+    for paragraph in text.split('\n'):
+        line = ''
+        for word in paragraph.split(' '):
+            candidate = word if not line else line + ' ' + word
+            if text_width(candidate, size) <= width:
+                line = candidate
+                continue
+            if line:
+                lines.append(line)
+            line = ''
+            for ch in word:                      # 단어 자체가 길면 글자 단위
+                if text_width(line + ch, size) > width and line:
+                    lines.append(line)
+                    line = ''
+                line += ch
+        lines.append(line)
+    return lines[:max_lines] if max_lines else lines
+
+
+def fill_tl(left, top, w, h, color):
+    """왼쪽 위 기준 채운 사각형 (색은 (r, g, b))"""
+    draw_rectangle(left, HEIGHT - top - h, left + w - 1, HEIGHT - top - 1, *color, 255, True)
 
 
 def img(path):
