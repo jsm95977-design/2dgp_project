@@ -2,7 +2,7 @@
 
 stages.json 한 파일에 스테이지 번호별로 저장한다. 게임을 껐다 켜도 남는다.
 {
-  "1": {"turns": 10, "goal_lines": 3,
+  "1": {"turns": 10, "goal_lines": 3, "message": "말풍선 대사",
         "cells": [[null, ["block", "red"], ["obstacle", 2], ...], ...]   # 8x8, [0]이 맨 위 줄
   },
   ...
@@ -21,10 +21,11 @@ DEFAULT_TURNS = 10
 DEFAULT_GOAL_LINES = 3
 TURNS_RANGE = (1, 99)
 GOAL_RANGE = (1, 99)
+MESSAGE_MAX = 40          # 말풍선 대사 최대 글자 수 (말풍선 3줄)
 
 
 def empty_stage():
-    return {'turns': DEFAULT_TURNS, 'goal_lines': DEFAULT_GOAL_LINES,
+    return {'turns': DEFAULT_TURNS, 'goal_lines': DEFAULT_GOAL_LINES, 'message': '',
             'cells': [[None] * BOARD_SIZE for _ in range(BOARD_SIZE)]}
 
 
@@ -42,6 +43,8 @@ def normalize(stage):
     result = empty_stage()
     result['turns'] = clamp(int(stage.get('turns', DEFAULT_TURNS)), *TURNS_RANGE)
     result['goal_lines'] = clamp(int(stage.get('goal_lines', DEFAULT_GOAL_LINES)), *GOAL_RANGE)
+    message = stage.get('message', '')
+    result['message'] = message[:MESSAGE_MAX] if isinstance(message, str) else ''
     cells = stage.get('cells') or []
     for r, row in enumerate(cells[:BOARD_SIZE]):
         for c, cell in enumerate(row[:BOARD_SIZE]):
@@ -110,7 +113,7 @@ def save(stage, data):
     """한 스테이지를 저장한다. 임시 파일에 쓰고 바꿔치기해서, 쓰다가 꺼져도 기존 파일이 깨지지 않는다."""
     all_stages = load_all()
     all_stages[stage] = data
-    serializable = {str(k): {'turns': v['turns'], 'goal_lines': v['goal_lines'],
+    serializable = {str(k): {'turns': v['turns'], 'goal_lines': v['goal_lines'], 'message': v.get('message', ''),
                              'cells': [[list(cell) if cell else None for cell in row] for row in v['cells']]}
                     for k, v in sorted(all_stages.items())}
     write_json(STAGE_FILE, serializable)
