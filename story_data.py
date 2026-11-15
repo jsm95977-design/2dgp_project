@@ -33,6 +33,9 @@ OPENING = [
     ]},
 ]
 
+# 지역마다 보여 줄 이야기 (지역 선택의 '스토리 보기' 버튼). 없는 지역은 아직 준비 중
+STORIES = {'village': OPENING}
+
 # 이름표 이미지 (내레이션은 이름표 없음)
 NAME_PLATES = {'큐비': 'story/name_kubi.png'}
 
