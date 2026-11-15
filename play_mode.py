@@ -94,12 +94,14 @@ class Game:
         # 스테이지 모드
         self.stage = stage
         self.lines_total = 0    # 지금까지 지운 줄 수 (목표 판정)
+        self.broken_colors = {}  # 줄 삭제로 부순 색 블록 수 {색: 개수}
+        self.broken_stones = 0   # 완전히 부순 돌(방해) 블록 수
         self.stars = 0
         if self.stage:
             data = stage_data.load(self.stage)
             self.board.cells = [list(row) for row in data['cells']]
             self.turn_limit = data['turns']
-            self.goal_lines = data['goal_lines']
+            self.goal_type, self.goal, self.goal_color = data['goal_type'], data['goal'], data['goal_color']
             self.message = data['message']
             self.board.activate_suns()    # 맵에서 이미 둘러싸인 해는 바로 활성화
             self.goal_specials = {kind: self.board.count(kind) for kind in ('sun', 'moon')}
@@ -109,9 +111,25 @@ class Game:
     def specials_left(self, kind):
         return self.board.count(kind)
 
+    def goal_progress(self):
+        """목표 종류별 지금까지 한 양"""
+        if self.goal_type == 'score':
+            return self.score
+        if self.goal_type == 'color':
+            return self.broken_colors.get(self.goal_color, 0)
+        if self.goal_type == 'stones':
+            return self.broken_stones
+        return self.lines_total
+
+    def goal_text(self):
+        """HUD 목표 문구 (예: 목표 점수 600/1000)"""
+        name = {'lines': '줄', 'score': '점수', 'stones': '돌 블록',
+                'color': stage_data.COLOR_NAMES[self.goal_color] + ' 블록'}[self.goal_type]
+        return '목표 %s %d/%d' % (name, min(self.goal_progress(), self.goal), self.goal)
+
     def goal_done(self):
-        """스테이지 목표: 줄 수를 채우고, 맵의 해·달을 모두 획득"""
-        return (self.lines_total >= self.goal_lines and
+        """스테이지 목표: 목표 양을 채우고, 맵의 해·달을 모두 획득"""
+        return (self.goal_progress() >= self.goal and
                 self.specials_left('sun') == 0 and self.specials_left('moon') == 0)
 
     def turns_left(self):
@@ -166,6 +184,9 @@ class Game:
             self.steel_hit_timer = 0.4
         lines, removed, cracked = board.clear_lines()
         self.show_special_changes(board.last_specials)
+        for color, n in board.last_broken['colors'].items():
+            self.broken_colors[color] = self.broken_colors.get(color, 0) + n
+        self.broken_stones += board.last_broken['stones']
         if lines:
             self.combo += 1
             multiplier = 1 + config.COMBO_STEP * (self.combo - 1)
@@ -452,7 +473,7 @@ class Game:
         x = panel_left + 20
         draw_text(story_data.stage_label(self.stage), x, top + 10, 24, TEXT_YELLOW)   # 예: 지구 3
         draw_text('회전 %d/%d' % (self.energy, config.STAGE_ROTATIONS), x + 190, top + 10, 24)
-        goal = '목표 줄 %d/%d' % (min(self.lines_total, self.goal_lines), self.goal_lines)
+        goal = self.goal_text()
         for kind, name in (('sun', '해'), ('moon', '달')):
             total = self.goal_specials[kind]
             if total:
