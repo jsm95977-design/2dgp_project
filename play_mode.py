@@ -20,6 +20,7 @@ from cell_view import draw_cell
 from cube_view import CubeView, cross
 from effect import SheetEffect, FloatingText
 from mascot import Mascot
+from speech_bubble import draw_bubble
 from settings import HEIGHT
 from ui import img, draw_tl, draw_part, draw_number, draw_text, inside, Button
 
@@ -33,6 +34,7 @@ CUBE_SCALE = 62
 COLOR_PANEL = (400, 104)
 PREVIEW_PANEL = (400, 296)
 MASCOT_CENTER, MASCOT_SIZE = (528, 596), 150
+BUBBLE = (24, 648, 424)        # 스테이지 대사 말풍선 (왼쪽, 아래, 너비) - 높이는 줄 수에 맞춤, 꼬리가 캐릭터를 가리킨다
 GAUGE_POS = (16, 16)
 # 게이지 이미지 안 위치: 칸 i는 (64 + 16·i)부터, 오른쪽 끝 테두리는 596부터 28px, 칸이 없는 몸통은 548~580
 GAUGE_SLOT0, GAUGE_SLOT_PITCH = 64, 16
@@ -94,6 +96,7 @@ class Game:
             self.board.cells = [list(row) for row in data['cells']]
             self.turn_limit = data['turns']
             self.goal_lines = data['goal_lines']
+            self.message = data['message']
             self.board.activate_suns()    # 맵에서 이미 둘러싸인 해는 바로 활성화
             self.goal_specials = {kind: self.board.count(kind) for kind in ('sun', 'moon')}
 
@@ -357,6 +360,8 @@ class Game:
         if not self.stage:
             self.pass_button.draw()
         self.pause_button.draw()
+        if self.stage and self.message:
+            draw_bubble(*BUBBLE, self.message, tail_y=MASCOT_CENTER[1])
         self.mascot.draw()
         if self.dragging:
             self.draw_drag()
