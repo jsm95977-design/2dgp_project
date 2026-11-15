@@ -43,8 +43,7 @@ def resume():
 
 def go_stage_select():
     import stage_select_mode
-    stage_select_mode.selected_stage = play_mode.game.stage
-    game_framework.change_mode(stage_select_mode)
+    stage_select_mode.show(play_mode.game.stage)     # 그 스테이지가 든 지역의 선택 화면
 
 
 def handle_events(events):
