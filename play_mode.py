@@ -37,6 +37,8 @@ PREVIEW_PANEL = (400, 296)
 MASCOT_CENTER, MASCOT_SIZE = (528, 596), 150
 BUBBLE = (24, 648, 424)        # 스테이지 대사 말풍선 (왼쪽, 아래, 너비) - 높이는 줄 수에 맞춤, 꼬리가 캐릭터를 가리킨다
 GAUGE_POS = (16, 16)
+STAGE_GAUGE_POS = (96, 16)    # 스테이지는 왼쪽 위에 뒤로 버튼이 있어 게이지를 오른쪽으로 민다
+BACK_POS = (16, 16)
 # 게이지 이미지 안 위치: 칸 i는 (64 + 16·i)부터, 오른쪽 끝 테두리는 596부터 28px, 칸이 없는 몸통은 548~580
 GAUGE_SLOT0, GAUGE_SLOT_PITCH = 64, 16
 GAUGE_CAP_LEFT_W, GAUGE_BODY, GAUGE_CAP_RIGHT = 16, (548, 32), (596, 28)
@@ -70,6 +72,7 @@ class Game:
         self.effects = []
         self.pass_button = Button('buttons/btn_pass', 160, 560, has_disabled=True)
         self.pause_button = Button('buttons/icon_pause', 1208, 4, hit_h=64)
+        self.back_button = Button('buttons/icon_back', *BACK_POS, hit_h=64)   # 스테이지 모드만
 
         self.energy = config.ENERGY_START
         self.score = 0
@@ -198,6 +201,13 @@ class Game:
             name = 'special/fx_moon_collect' if kind == 'moon' else 'special/fx_sunrise'
             self.effects.append(SheetEffect(name, 8, left - 64, top - 64, size=192, fps=12))
 
+    def leave_stage(self):
+        """스테이지를 그만두고 그 지역의 스테이지 선택으로 (게임 오버·클리어 연출 중에는 무시)"""
+        if self.state in (STATE_OVER, STATE_CLEAR):
+            return
+        import stage_select_mode
+        stage_select_mode.show(self.stage)
+
     def pass_turn(self):
         if self.stage or not self.can_act():     # 스테이지 모드에는 패스가 없다
             return
@@ -271,6 +281,9 @@ class Game:
                 self.cube_view.rotate_front(event.key == SDLK_e)
             return
 
+        if self.stage and self.back_button.handle_event(event):
+            self.leave_stage()
+            return
         if self.pause_button.handle_event(event):
             open_pause()
             return
@@ -361,6 +374,8 @@ class Game:
         if not self.stage:
             self.pass_button.draw()
         self.pause_button.draw()
+        if self.stage:
+            self.back_button.draw()
         if self.stage and self.message:
             draw_bubble(*BUBBLE, self.message, tail_y=MASCOT_CENTER[1])
         self.mascot.draw()
@@ -389,11 +404,12 @@ class Game:
             self.draw_stage_gauge()
         else:
             draw_tl(img('hud/energy_gauge'), *GAUGE_POS)
+        gauge_left = (STAGE_GAUGE_POS if self.stage else GAUGE_POS)[0]
         low = self.energy <= (1 if self.stage else config.ENERGY_LOW)
         blink = low and int(self.blink_timer * 4) % 2 == 1
         seg = img('hud/energy_seg_blink' if blink else 'hud/energy_seg_low' if low else 'hud/energy_seg_full')
         for i in range(self.energy):
-            draw_tl(seg, 80 + 16 * i, 32)
+            draw_tl(seg, gauge_left + GAUGE_SLOT0 + GAUGE_SLOT_PITCH * i, 32)
 
         # 점수 · 턴
         draw_tl(img('hud/score_panel'), 672, 4)
@@ -420,7 +436,7 @@ class Game:
     def draw_stage_gauge(self):
         """스테이지용 짧은 게이지(번개 + 회전 칸 STAGE_ROTATIONS개)와 그 오른쪽 정보 패널"""
         gauge = img('hud/energy_gauge')
-        left, top = GAUGE_POS
+        left, top = STAGE_GAUGE_POS
         cut = GAUGE_SLOT0 + GAUGE_SLOT_PITCH * config.STAGE_ROTATIONS
         draw_part(gauge, 0, cut, left, top)
         draw_part(gauge, *GAUGE_CAP_RIGHT, left + cut, top)
