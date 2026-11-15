@@ -15,6 +15,7 @@ import config
 import game_framework
 import piece as piece_logic
 import stage_data
+import story_data
 from board import Board
 from cell_view import draw_cell
 from cube_view import CubeView, cross
@@ -433,7 +434,7 @@ class Game:
         draw_part(gauge, *GAUGE_CAP_RIGHT, INFO_RIGHT - GAUGE_CAP_RIGHT[1], top)
 
         x = panel_left + 20
-        draw_text('스테이지 %d' % self.stage, x, top + 10, 24, TEXT_YELLOW)
+        draw_text(story_data.stage_label(self.stage), x, top + 10, 24, TEXT_YELLOW)   # 예: 지구 3
         draw_text('회전 %d/%d' % (self.energy, config.STAGE_ROTATIONS), x + 190, top + 10, 24)
         goal = '목표 줄 %d/%d' % (min(self.lines_total, self.goal_lines), self.goal_lines)
         for kind, name in (('sun', '해'), ('moon', '달')):
