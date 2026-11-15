@@ -62,3 +62,59 @@ def is_unlocked(region_index, cleared):
         return True
     prev = REGIONS[region_index - 1]
     return cleared[region_index - 1] >= prev['stages']
+
+
+# ---------- 스테이지 번호 ↔ 지역 ----------
+# 스테이지 번호는 지역을 이어서 매긴다: 큐브마을 1~20, 지구 21~50, 우주 51~80
+# (stages.json, stage_progress.json은 이 전체 번호를 쓴다)
+
+def first_stage(region_index):
+    """그 지역 첫 스테이지의 전체 번호"""
+    return 1 + sum(r['stages'] for r in REGIONS[:region_index])
+
+
+def stage_numbers(region_index):
+    first = first_stage(region_index)
+    return range(first, first + REGIONS[region_index]['stages'])
+
+
+def total_stages():
+    return sum(r['stages'] for r in REGIONS)
+
+
+def region_of(stage):
+    """전체 번호 → (지역 번호, 지역 안 번호 1부터)"""
+    for i in range(len(REGIONS)):
+        if stage in stage_numbers(i):
+            return i, stage - first_stage(i) + 1
+    return len(REGIONS) - 1, stage - first_stage(len(REGIONS) - 1) + 1
+
+
+def stage_label(stage):
+    """화면에 보일 스테이지 이름 (예: '지구 3')"""
+    i, local = region_of(stage)
+    return '%s %d' % (REGIONS[i]['name'], local)
+
+
+def cleared_counts(progress):
+    """지역마다 깬(별 1개 이상) 스테이지 수. progress는 stage_data.load_progress()"""
+    return [sum(1 for s in stage_numbers(i) if progress.get(s, {}).get('stars', 0) > 0)
+            for i in range(len(REGIONS))]
+
+
+# ---------- 오프닝을 봤는지 (최고 기록처럼 파일에 저장) ----------
+import os
+
+OPENING_SEEN_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'opening_seen.txt')
+
+
+def opening_seen():
+    return os.path.exists(OPENING_SEEN_FILE)
+
+
+def mark_opening_seen():
+    try:
+        with open(OPENING_SEEN_FILE, 'w', encoding='utf-8') as f:
+            f.write('1')
+    except OSError:
+        pass
