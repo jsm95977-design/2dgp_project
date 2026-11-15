@@ -2,13 +2,19 @@
 
 stages.json 한 파일에 스테이지 번호별로 저장한다. 게임을 껐다 켜도 남는다.
 {
-  "1": {"turns": 10, "goal_lines": 3, "message": "말풍선 대사",
+  "1": {"turns": 10, "goal_type": "lines", "goal": 3, "goal_color": "red", "message": "말풍선 대사",
         "cells": [[null, ["block", "red"], ["obstacle", 2], ...], ...]   # 8x8, [0]이 맨 위 줄
   },
   ...
 }
 칸 값은 board.Board와 같다: None(빈칸) / ["block", 색] / ["obstacle", 내구도]
 특수 블록: ["steel", 0] / ["bomb", 1~3] / ["sun", 0] / ["moon", 0]
+
+목표 (goal_type → goal의 뜻):
+  lines  줄 goal개 지우기          score  점수 goal점 모으기
+  color  goal_color 블록 goal개 부수기 (줄 삭제로)
+  stones 돌(방해) 블록 goal개 부수기 (내구도가 다 닳아 사라진 것)
+예전 파일의 goal_lines는 lines 목표로 읽는다. 맵의 해·달은 목표와 상관없이 모두 획득해야 한다.
 """
 import json
 import os
@@ -20,12 +26,18 @@ PROGRESS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'stage_
 DEFAULT_TURNS = 10
 DEFAULT_GOAL_LINES = 3
 TURNS_RANGE = (1, 99)
-GOAL_RANGE = (1, 99)
+GOAL_TYPES = ('lines', 'score', 'color', 'stones')
+GOAL_NAMES = {'lines': '줄 지우기', 'score': '점수 모으기', 'color': '색 블록 부수기', 'stones': '돌 블록 부수기'}
+GOAL_RANGES = {'lines': (1, 99), 'score': (100, 99900), 'color': (1, 99), 'stones': (1, 99)}
+GOAL_STEPS = {'lines': 1, 'score': 100, 'color': 1, 'stones': 1}       # 편집 모드 화살표 한 번
+GOAL_DEFAULTS = {'lines': 3, 'score': 1000, 'color': 10, 'stones': 3}
+COLOR_NAMES = {'red': '빨강', 'orange': '주황', 'yellow': '노랑', 'green': '초록', 'blue': '파랑', 'white': '흰색'}
 MESSAGE_MAX = 40          # 말풍선 대사 최대 글자 수 (말풍선 3줄)
 
 
 def empty_stage():
-    return {'turns': DEFAULT_TURNS, 'goal_lines': DEFAULT_GOAL_LINES, 'message': '',
+    return {'turns': DEFAULT_TURNS, 'goal_type': 'lines', 'goal': DEFAULT_GOAL_LINES, 'goal_color': COLORS[0],
+            'message': '',
             'cells': [[None] * BOARD_SIZE for _ in range(BOARD_SIZE)]}
 
 
@@ -42,7 +54,14 @@ def normalize(stage):
     """파일에서 읽은 값을 검사해 빠진 값은 기본값으로 채운다 (손으로 고친 파일 대비)"""
     result = empty_stage()
     result['turns'] = clamp(int(stage.get('turns', DEFAULT_TURNS)), *TURNS_RANGE)
-    result['goal_lines'] = clamp(int(stage.get('goal_lines', DEFAULT_GOAL_LINES)), *GOAL_RANGE)
+    goal_type = stage.get('goal_type', 'lines')
+    if goal_type not in GOAL_TYPES:
+        goal_type = 'lines'
+    goal = stage.get('goal', stage.get('goal_lines', GOAL_DEFAULTS[goal_type]))   # 예전 파일은 goal_lines
+    result['goal_type'] = goal_type
+    result['goal'] = clamp(int(goal), *GOAL_RANGES[goal_type])
+    color = stage.get('goal_color', COLORS[0])
+    result['goal_color'] = color if color in COLORS else COLORS[0]
     message = stage.get('message', '')
     result['message'] = message[:MESSAGE_MAX] if isinstance(message, str) else ''
     cells = stage.get('cells') or []
@@ -113,7 +132,8 @@ def save(stage, data):
     """한 스테이지를 저장한다. 임시 파일에 쓰고 바꿔치기해서, 쓰다가 꺼져도 기존 파일이 깨지지 않는다."""
     all_stages = load_all()
     all_stages[stage] = data
-    serializable = {str(k): {'turns': v['turns'], 'goal_lines': v['goal_lines'], 'message': v.get('message', ''),
+    serializable = {str(k): {'turns': v['turns'], 'goal_type': v['goal_type'], 'goal': v['goal'],
+                             'goal_color': v['goal_color'], 'message': v.get('message', ''),
                              'cells': [[list(cell) if cell else None for cell in row] for row in v['cells']]}
                     for k, v in sorted(all_stages.items())}
     write_json(STAGE_FILE, serializable)
