@@ -11,7 +11,7 @@ import game_framework
 import stage_data
 import story_data
 from settings import HEIGHT
-from ui import img, draw_tl, draw_text, inside, Button
+from ui import img, draw_tl, draw_hint_bar, inside, Button
 
 ICON = 192
 ICON_POS = {'village': (144, 256), 'earth': (544, 224), 'space': (944, 256)}
@@ -118,4 +118,4 @@ def draw():
             x0 = ICON_POS[key][0] + ICON // 2 - (DIGIT_W * len(text) + 36) // 2
             draw_tl(img('windows/star_small_full'), x0, name_top + 94)
             draw_small_number(text, x0 + 36, name_top + 94)
-    draw_text('F1: 잠긴 지역도 들어가기 (맵 편집용)', 40, 680, 16, (220, 220, 240))
+    draw_hint_bar('F1: 마우스를 올린 지역은 잠겨 있어도 들어가기 (맵 편집용)', 24, 672)
