@@ -82,6 +82,15 @@ def fill_tl(left, top, w, h, color):
     draw_rectangle(left, HEIGHT - top - h, left + w - 1, HEIGHT - top - 1, *color, 255, True)
 
 
+def draw_hint_bar(text, left, top, size=18):
+    """밝은 배경 위에서도 읽히게 HUD 패널 색의 어두운 띠 위에 도움말 글자를 쓴다"""
+    pad_x, pad_y = 12, 6
+    w, h = text_width(text, size) + 2 * pad_x, size + 2 * pad_y + 2
+    fill_tl(left, top, w, h, (36, 25, 92))                  # 테두리
+    fill_tl(left + 2, top + 2, w - 4, h - 4, (43, 37, 88))  # 안쪽
+    draw_text(text, left + pad_x, top + pad_y + 2, size, (220, 220, 240))
+
+
 def img(path):
     """'hud/score_panel' 처럼 확장자 없이 부른다. 한 번 불러온 이미지는 재사용한다."""
     if path not in _cache:
