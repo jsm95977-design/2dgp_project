@@ -160,3 +160,45 @@ class Button:
         else:
             image = self.normal
         draw_tl(image, self.left, self.top)
+
+
+class TextButton:
+    """이미지 없이 그리는 작은 픽셀 버튼 (버튼 에셋과 같은 파랑·어두운 테두리·아래 그림자).
+    가운데 x(center)와 위쪽(top) 기준. 마우스를 올리면 밝아지고 한 칸(4px) 위로 올라간다."""
+    OUTLINE = (36, 25, 92)
+    FACE = (59, 139, 255)
+    FACE_HOVER = (94, 160, 255)
+    HIGHLIGHT = (157, 197, 255)
+    BOTTOM = (45, 106, 194)
+
+    def __init__(self, text, center, top, size=24, pad_x=20):
+        self.text, self.size = text, size
+        self.w = text_width(text, size) + 2 * pad_x
+        self.h = size + 24
+        self.left, self.top = center - self.w // 2, top
+        self.hover = False
+
+    def contains(self, x, y):
+        return inside(x, y, self.left, self.top - 4, self.w, self.h + 4)
+
+    def handle_event(self, event):
+        """클릭되면 True"""
+        if event.type == SDL_MOUSEMOTION:
+            self.hover = self.contains(event.x, event.y)
+        elif event.type == SDL_MOUSEBUTTONDOWN and event.button == SDL_BUTTON_LEFT:
+            return self.contains(event.x, event.y)
+        return False
+
+    def draw(self):
+        l, w, h = self.left, self.w, self.h
+        t = self.top - (4 if self.hover else 0)
+        fill_tl(l + 4, self.top + 8, w - 8, h, self.OUTLINE)            # 아래 그림자 (제자리)
+        fill_tl(l + 4, t, w - 8, h, self.OUTLINE)                       # 테두리 (모서리 한 칸 깎기)
+        fill_tl(l, t + 4, w, h - 8, self.OUTLINE)
+        fill_tl(l + 4, t + 4, w - 8, h - 8, self.FACE_HOVER if self.hover else self.FACE)
+        fill_tl(l + 8, t + 4, w - 16, 4, self.HIGHLIGHT)                # 위쪽 밝은 줄
+        fill_tl(l + 4, t + h - 12, w - 8, 8, self.BOTTOM)               # 아래쪽 어두운 띠
+        text_top = t + (h - self.size) // 2 - 2
+        left = l + (w - text_width(self.text, self.size)) // 2
+        draw_text(self.text, left + 2, text_top + 2, self.size, self.OUTLINE)   # 글자 그림자
+        draw_text(self.text, left, text_top, self.size)
