@@ -10,6 +10,7 @@ from pico2d import *
 
 import game_framework
 import stage_data
+import story_data
 from config import COLORS, BOARD_SIZE
 from settings import HEIGHT
 from cell_view import draw_cell
@@ -148,7 +149,7 @@ def handle_text_event(event):
 def go_back():
     finish_editing()
     import stage_select_mode
-    game_framework.change_mode(stage_select_mode)
+    stage_select_mode.show(stage)     # 편집하던 스테이지가 든 지역으로 돌아간다
 
 
 def init():
@@ -257,9 +258,12 @@ def draw_message_box():
 def draw():
     draw_tl(img('board/play_bg'), 0, 0)
     back_button.draw()
-    draw_text('스테이지', 104, 26, 30)
-    draw_number(str(stage), 240, 22, yellow=True)
-    draw_text('편집 모드', 330, 26, 30, (255, 230, 120))
+    region, local = story_data.region_of(stage)     # 예: 지구 3 (전체 번호 23)
+    name = story_data.REGIONS[region]['name']
+    draw_text(name, 104, 26, 36)
+    number_left = 104 + text_width(name, 36) + 16
+    draw_number(str(local), number_left, 22, yellow=True)
+    draw_text('편집 모드', number_left + 36 * len(str(local)) + 24, 26, 36, (255, 230, 120))
 
     # 왼쪽 패널
     left, top, w, h = PANEL
