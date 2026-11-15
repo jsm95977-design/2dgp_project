@@ -1,6 +1,8 @@
 """모드 전환 (수업 구조). 모드는 init/finish/pause/resume/handle_events/update/draw를 가진 모듈이다.
 스택에 쌓인 모드는 아래부터 모두 그리고, 맨 위 모드만 입력과 업데이트를 받는다."""
-from pico2d import clear_canvas, update_canvas, get_events, get_time, SDL_QUIT
+from pico2d import clear_canvas, update_canvas, get_time, SDL_QUIT
+
+from input_events import get_events, stop_text_input
 
 running = False
 stack = []
@@ -36,6 +38,7 @@ def quit():
 def run(start_mode):
     global running
     running = True
+    stop_text_input()      # SDL은 처음부터 글자 입력이 켜져 있다. 입력칸을 편집할 때만 켠다
     change_mode(start_mode)
 
     last_time = get_time()
