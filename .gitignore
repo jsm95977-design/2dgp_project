@@ -2,3 +2,4 @@ __pycache__/
 highscore.txt
 stage_progress.json
 character.txt
+opening_seen.txt
