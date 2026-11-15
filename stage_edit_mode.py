@@ -32,20 +32,21 @@ TOOL_HELP = {
     'moon': '든 줄을 3번 지우면 보름달, 그 뒤 한 번 더 지우면 획득',
 }
 TOOL_KEYS = [SDLK_1, SDLK_2, SDLK_3, SDLK_4, SDLK_5, SDLK_6, SDLK_7, SDLK_8, SDLK_9, SDLK_0]
-COLOR_NAMES = {'red': '빨강', 'orange': '주황', 'yellow': '노랑', 'green': '초록', 'blue': '파랑', 'white': '흰색'}
+COLOR_NAMES = stage_data.COLOR_NAMES
 
 PANEL = (24, 104, 600, 536)          # 왼쪽 패널 (왼쪽, 위, 너비, 높이)
 TOOL0, TOOL_PITCH = (56, 176), (68, 92)   # 도구 칸 첫 위치와 가로·세로 간격
 TOOLS_PER_ROW = 8
-SETTING_TOP = 452                    # 턴 제한 줄 위치 (목표 줄은 +64)
-MESSAGE_BOX = (150, 562, 450, 40)    # 말풍선 대사 입력칸 (왼쪽, 위, 너비, 높이)
+SETTING_TOP, SETTING_GAP = 432, 48   # 설정 줄: 턴 제한 / 목표 종류 / 목표 양 (+ 색)
+ARROW_L, ARROW_R, VALUE_CENTER = 200, 420, 330
+COLOR_ARROWS = (478, 576)            # 색 목표일 때 오른쪽 색 고르기 화살표
+MESSAGE_BOX = (150, 578, 450, 36)    # 말풍선 대사 입력칸 (왼쪽, 위, 너비, 높이)
 
 stage = 1
 data = None
 tool = 0
 painting = None      # 마우스를 누른 채 칠하는 중이면 칠할 값 ('erase'는 지우기)
 back_button = None
-arrows = {}          # (설정 이름, -1/+1) → 화살표 왼쪽 위
 saved_timer = 0.0
 anim_time = 0.0      # 특수 블록 애니메이션용
 editing = False      # 말풍선 대사를 입력하는 중
@@ -93,11 +94,43 @@ def paint(x, y):
 
 
 def change_setting(key, delta):
-    low, high = stage_data.TURNS_RANGE if key == 'turns' else stage_data.GOAL_RANGE
-    value = stage_data.clamp(data[key] + delta, low, high)
-    if value != data[key]:
+    """화살표 한 번. goal_type·goal_color는 목록을 돌고, 숫자는 범위 안에서 늘리고 줄인다"""
+    if key == 'goal_type':
+        types = stage_data.GOAL_TYPES
+        data['goal_type'] = types[(types.index(data['goal_type']) + delta) % len(types)]
+        data['goal'] = stage_data.GOAL_DEFAULTS[data['goal_type']]    # 종류가 바뀌면 기본 양으로
+    elif key == 'goal_color':
+        data['goal_color'] = COLORS[(COLORS.index(data['goal_color']) + delta) % len(COLORS)]
+    else:
+        if key == 'turns':
+            low, high, step = *stage_data.TURNS_RANGE, 1
+        else:
+            goal_type = data['goal_type']
+            low, high = stage_data.GOAL_RANGES[goal_type]
+            step = stage_data.GOAL_STEPS[goal_type]
+        value = stage_data.clamp(data[key] + delta * step, low, high)
+        if value == data[key]:
+            return
         data[key] = value
-        save()
+    save()
+
+
+def setting_rows():
+    """(설정 이름, 줄 위쪽) - 색 목표면 목표 양 줄 오른쪽에 색 고르기가 붙는다"""
+    return [('turns', SETTING_TOP), ('goal_type', SETTING_TOP + SETTING_GAP), ('goal', SETTING_TOP + 2 * SETTING_GAP)]
+
+
+def active_arrows():
+    """지금 보이는 화살표 {(설정, -1/+1): (왼쪽, 위)}"""
+    result = {}
+    for key, top in setting_rows():
+        result[(key, -1)] = (ARROW_L, top)
+        result[(key, +1)] = (ARROW_R, top)
+    if data['goal_type'] == 'color':
+        top = SETTING_TOP + 2 * SETTING_GAP
+        result[('goal_color', -1)] = (COLOR_ARROWS[0], top)
+        result[('goal_color', +1)] = (COLOR_ARROWS[1], top)
+    return result
 
 
 def clear_board():
@@ -158,10 +191,6 @@ def init():
     tool, painting, saved_timer = 0, None, 0.0
     finish_editing()
     back_button = Button('buttons/icon_back', 16, 16, hit_h=64)
-    for i, key in enumerate(('turns', 'goal_lines')):
-        top = SETTING_TOP + 64 * i
-        arrows[(key, -1)] = (300, top)
-        arrows[(key, +1)] = (436, top)
 
 
 def finish():
@@ -206,7 +235,7 @@ def handle_events(events):
             if picked is not None and event.button == SDL_BUTTON_LEFT:
                 tool = picked
                 continue
-            for (key, delta), (left, top) in arrows.items():
+            for (key, delta), (left, top) in active_arrows().items():
                 if inside(x, y, left, top, 40, 40) and event.button == SDL_BUTTON_LEFT:
                     change_setting(key, delta)
                     break
@@ -233,6 +262,29 @@ def draw_cell_value(value, left, top):
         draw_tl(img('board/cell_empty'), left, top)
     else:
         draw_cell(value, left, top, t=anim_time)
+
+
+GOAL_AMOUNT_LABELS = {'lines': '줄 수', 'score': '점수', 'color': '블록 수', 'stones': '돌 수'}
+
+
+def draw_settings():
+    labels = {'turns': '턴 제한', 'goal_type': '목표', 'goal': GOAL_AMOUNT_LABELS[data['goal_type']]}
+    arrows_now = active_arrows()
+    for key, top in setting_rows():
+        draw_text(labels[key], 56, top + 8, 24)
+        draw_tl(img('cube/arrow_left'), *arrows_now[(key, -1)])
+        draw_tl(img('cube/arrow_right'), *arrows_now[(key, +1)])
+        if key == 'goal_type':
+            text = stage_data.GOAL_NAMES[data['goal_type']]
+            draw_text(text, VALUE_CENTER - text_width(text, 24) // 2, top + 8, 24, (255, 230, 120))
+        else:
+            text = str(data[key])
+            draw_number(text, VALUE_CENTER - 18 * len(text), top, yellow=True)   # 두 화살표 사이 가운데
+    if data['goal_type'] == 'color':      # 색 고르기: ◀ [블록] ▶
+        top = SETTING_TOP + 2 * SETTING_GAP
+        draw_tl(img('cube/arrow_left'), *arrows_now[('goal_color', -1)])
+        draw_tl(img('hud/mini_' + data['goal_color']), COLOR_ARROWS[0] + 48, top - 4)
+        draw_tl(img('cube/arrow_right'), *arrows_now[('goal_color', +1)])
 
 
 def draw_message_box():
@@ -285,17 +337,10 @@ def draw():
     if value and value[0] in TOOL_HELP:
         draw_text(TOOL_HELP[value[0]], 56, 408, 16, (220, 220, 240))
 
-    draw_text('턴 제한', 56, SETTING_TOP + 8, 22)
-    draw_text('목표 줄 삭제', 56, SETTING_TOP + 72, 22)
-    for i, key in enumerate(('turns', 'goal_lines')):
-        top = SETTING_TOP + 64 * i
-        draw_tl(img('cube/arrow_left'), *arrows[(key, -1)])
-        text = str(data[key])
-        draw_number(text, 388 - 18 * len(text), top, yellow=True)   # 두 화살표 사이 가운데
-        draw_tl(img('cube/arrow_right'), *arrows[(key, +1)])
+    draw_settings()
 
     draw_message_box()
-    draw_text('좌클릭·드래그 칠하기 · 우클릭 지우기 · Delete 전체 지우기 · F1/ESC 나가기', 40, 612, 16,
+    draw_text('좌클릭·드래그 칠하기 · 우클릭 지우기 · Delete 전체 지우기 · F1/ESC 나가기', 40, 620, 16,
               (220, 220, 240))
 
     # 보드
