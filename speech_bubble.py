@@ -11,7 +11,9 @@ TEXT = (36, 25, 92)
 TEXT_SIZE = 24                # Galmuri11 12px 격자의 2배 → 반듯한 픽셀
 LINE_H = 30
 PAD_X, PAD_Y = 20, 14
-TAIL_STEPS = 5                # 꼬리 길이 (칸 수)
+TAIL_STEPS = 4                # 꼬리 계단 수
+TAIL_STEP_W = 8               # 계단 한 단 너비 → 꼬리 길이 32px
+MIN_H = 64
 
 
 def _rounded_rect(left, top, w, h, color, inset=0):
@@ -21,29 +23,48 @@ def _rounded_rect(left, top, w, h, color, inset=0):
     fill_tl(l, t + UNIT, w, h - 2 * UNIT, color)
 
 
-def _tail(right, center_y, color, shrink):
-    """오른쪽으로 갈수록 짧아지는 세로 막대들. shrink만큼 위아래를 줄여 안쪽 색을 그린다."""
+def tail_half(k):
+    """꼬리 k번째 단의 테두리 절반 높이 (오른쪽으로 갈수록 한 칸씩 낮아진다)"""
+    return (TAIL_STEPS - k) * UNIT + UNIT
+
+
+def _tail(right, center_y):
+    """오른쪽으로 튀어나온 계단 꼬리. 테두리를 먼저 그리고 안쪽을 한 칸 작게 채운다.
+    첫 단의 안쪽은 말풍선 테두리 위까지 칠해 말풍선과 이어 보이게 한다."""
+    x0 = right - UNIT
     for k in range(TAIL_STEPS):
-        half = (TAIL_STEPS - 1 - k) * UNIT // 2 + UNIT - shrink
+        half = tail_half(k)
+        fill_tl(x0 + k * TAIL_STEP_W, center_y - half, TAIL_STEP_W, 2 * half, OUTLINE)
+    for k in range(TAIL_STEPS):
+        half = tail_half(k) - 2 * UNIT
         if half <= 0:
             break
-        fill_tl(right + k * UNIT, center_y - half, UNIT, 2 * half, color)
+        extra = UNIT if k == 0 else 0
+        fill_tl(x0 + k * TAIL_STEP_W - extra, center_y - half, TAIL_STEP_W + extra, 2 * half, FILL)
 
 
 def lines_for(text, width):
     return wrap_text(text, TEXT_SIZE, width - 2 * PAD_X, max_lines=3)
 
 
-def draw_bubble(left, top, w, h, text, tail_y=None):
-    """왼쪽 위 (left, top), 크기 w x h 말풍선. tail_y(화면 y)에 오른쪽 꼬리. 글자는 세로 가운데 정렬."""
-    tail_y = top + h // 2 if tail_y is None else tail_y
+def height_for(text, width):
+    """대사 줄 수에 맞는 말풍선 높이"""
+    return max(MIN_H, LINE_H * len(lines_for(text, width)) + 2 * PAD_Y)
+
+
+def draw_bubble(left, bottom, w, text, tail_y):
+    """아래쪽 bottom에 붙여 줄 수에 맞는 높이로 그린다 (위로 자란다).
+    tail_y(화면 y)에 오른쪽 꼬리 - 말풍선 안에 들어오도록 맞춘다. 글자는 세로 가운데 정렬."""
+    h = height_for(text, w)
+    top = bottom - h
+    margin = tail_half(0) + UNIT
+    tail_y = max(top + margin, min(bottom - margin, tail_y))
     right = left + w
-    # 그림자 → 테두리 → 안쪽
+    # 그림자 → 테두리 → 안쪽 → 꼬리 (꼬리 안쪽이 말풍선 테두리를 덮어 이어진다)
     _rounded_rect(left, top + UNIT + 2, w, h, SHADOW)
     _rounded_rect(left, top, w, h, OUTLINE)
-    _tail(right - UNIT, tail_y, OUTLINE, 0)
     _rounded_rect(left, top, w, h, FILL, inset=UNIT)
-    _tail(right - 2 * UNIT, tail_y, FILL, UNIT)
+    _tail(right, tail_y)
 
     lines = lines_for(text, w)
     y = top + (h - LINE_H * len(lines)) // 2 + 3
