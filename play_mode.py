@@ -67,8 +67,6 @@ class Game:
         self.effects = []
         self.pass_button = Button('buttons/btn_pass', 160, 560, has_disabled=True)
         self.pause_button = Button('buttons/icon_pause', 1208, 4, hit_h=64)
-        self.ccw_button = Button('cube/rotate_ccw', 48, 568, hit_h=56)
-        self.cw_button = Button('cube/rotate_cw', 104, 568, hit_h=56)
 
         self.energy = config.ENERGY_START
         self.score = 0
@@ -275,10 +273,6 @@ class Game:
         if not self.stage and self.pass_button.handle_event(event):
             self.pass_turn()
             return
-        for button, clockwise in ((self.ccw_button, False), (self.cw_button, True)):
-            if button.handle_event(event) and self.state == STATE_ROTATE:
-                self.cube_view.rotate_front(clockwise)
-                return
 
         if event.type in (SDL_MOUSEMOTION, SDL_MOUSEBUTTONDOWN, SDL_MOUSEBUTTONUP):
             self.mouse = event.x, event.y
@@ -360,8 +354,6 @@ class Game:
         self.draw_board()
         self.draw_hud()
         self.cube_view.draw()
-        self.ccw_button.draw()
-        self.cw_button.draw()
         if not self.stage:
             self.pass_button.draw()
         self.pause_button.draw()
